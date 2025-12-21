@@ -2,6 +2,8 @@
 
 本文档定义了“成绩管理教学平台”项目所需的所有数据库表结构。
 
+数据库名称：Web-Programming-Course-Project
+
 ---
 
 ### 1. 核心用户与信息表
@@ -162,10 +164,12 @@
 | `item_name` | VARCHAR(100) | NN | 成绩项名称 (如: "作业1", "期末考试") |
 | `weight` | DECIMAL(5, 2) | NN | 该项成绩占总成绩的权重 (0.00-1.00) |
 | `description` | TEXT | | 描述 |
+| `assignment_id` | INT | FK (Assignments.id) | 关联到作业/考试表（可选，若为作业/考试项时填写） |
 | `is_deleted` | BOOLEAN | NN, DF(0) | 是否被删除（软删除标记） |
 
 索引建议：
 - 索引 `course_id`（外键）。
+- 索引 `assignment_id`（外键，可选）。
 
 #### 3.3. 成绩表 (Grades)
 记录学生每门课程下每个成绩项的具体得分。
@@ -205,9 +209,86 @@
 
 ---
 
-### 4. 系统管理表
+存储每门课程布置的作业和考试信息。
 
-#### 4.1. 日志表 (Logs)
+| 属性名 | 数据类型 | 约束 | 描述 |
+| :--- | :--- | :--- | :--- |
+| `id` | INT | PK, AI | 唯一标识符 |
+| `course_id` | INT | FK (Courses.id) | 关联课程 |
+| `title` | VARCHAR(100) | NN | 作业/考试标题 |
+| `description` | TEXT | | 说明 |
+| `file_path` | VARCHAR(255) | | 附件/文件路径 |
+| `deadline` | DATETIME | | 截止时间 |
+| `type` | ENUM | NN | 类型('assignment','exam') |
+| `created_at` | TIMESTAMP | DF(CURRENT_TIMESTAMP) | 创建时间 |
+| `is_deleted` | BOOLEAN | NN, DF(0) | 软删除标记 |
+
+索引建议：
+- 索引 `course_id`（外键）。
+- 索引 `type`。
+
+---
+
+#### 3.6. 作业/考试提交表 (AssignmentSubmissions)
+存储学生针对作业/考试的提交内容。
+
+| 属性名 | 数据类型 | 约束 | 描述 |
+| :--- | :--- | :--- | :--- |
+| `id` | INT | PK, AI | 唯一标识符 |
+| `assignment_id` | INT | FK (Assignments.id) | 关联作业/考试 |
+| `student_id` | INT | FK (StudentProfiles.id) | 提交学生 |
+| `file_path` | VARCHAR(255) | | 提交文件路径 |
+| `submitted_at` | TIMESTAMP | DF(CURRENT_TIMESTAMP) | 提交时间 |
+| `score` | DECIMAL(5,2) | | 得分 |
+| `feedback` | TEXT | | 教师评语 |
+| `graded_at` | TIMESTAMP | | 批改时间 |
+| `grader_id` | INT | FK (Users.id) | 批改教师ID |
+| `is_deleted` | BOOLEAN | NN, DF(0) | 软删除标记 |
+
+索引建议：
+- 索引 `assignment_id`（外键）。
+- 索引 `student_id`（外键）。
+- 组合索引 (`assignment_id`, `student_id`) 以优化查重和查询。
+
+---
+
+### 4. 排课与教室管理表
+
+#### 4.1. 教室表 (Classrooms)
+存储所有教室信息。
+
+| 属性名 | 数据类型 | 约束 | 描述 |
+| :--- | :--- | :--- | :--- |
+| `id` | INT | PK, AI | 唯一标识符 |
+| `name` | VARCHAR(100) | UNIQUE, NN | 教室名称 |
+| `location` | VARCHAR(255) | | 位置 |
+| `capacity` | INT | | 容纳人数 |
+
+索引建议：
+- 索引 `name`（唯一）。
+
+#### 4.2. 课程排课表 (CourseSchedules)
+每条记录对应一次具体的上课安排。
+
+| 属性名 | 数据类型 | 约束 | 描述 |
+| :--- | :--- | :--- | :--- |
+| `id` | INT | PK, AI | 唯一标识符 |
+| `teaching_id` | INT | FK (TeachingAssignments.id) | 关联授课关系 |
+| `classroom_id` | INT | FK (Classrooms.id) | 上课教室 |
+| `day_of_week` | ENUM | NN | 星期几（如'Mon','Tue',...,'Sun') |
+| `start_time` | TIME | NN | 上课开始时间 |
+| `end_time` | TIME | NN | 上课结束时间 |
+
+索引建议：
+- 索引 `teaching_id`（外键）。
+- 索引 `classroom_id`（外键）。
+- 组合索引 (`classroom_id`, `day_of_week`, `start_time`, `end_time`) 以便冲突检测。
+
+---
+
+### 5. 系统管理表
+
+#### 5.1. 日志表 (Logs)
 记录系统关键操作日志。
 
 | 属性名 | 数据类型 | 约束 | 描述 |

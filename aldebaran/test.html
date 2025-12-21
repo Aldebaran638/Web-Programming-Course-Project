@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>课程列表查询演示</title>
+    <link rel="stylesheet" href="test.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>课程信息查询演示</h1>
+      <form id="searchForm">
+        <label>课程编号：<input type="text" name="course_code" /></label>
+        <label>课程名称：<input type="text" name="course_name" /></label>
+        <label>院系：<input type="text" name="department" /></label>
+        <label>学分：<input type="number" step="0.1" name="credits" /></label>
+        <label
+          >排序：
+          <select name="sortBy">
+            <option value="course_code">课程编号</option>
+            <option value="course_name">课程名称</option>
+            <option value="credits">学分</option>
+            <option value="department">院系</option>
+          </select>
+        </label>
+        <label
+          >顺序：
+          <select name="order">
+            <option value="asc">升序</option>
+            <option value="desc">降序</option>
+          </select>
+        </label>
+        <label
+          >每页数量：<input
+            type="number"
+            name="pageSize"
+            value="5"
+            min="1"
+            max="50"
+        /></label>
+        <label
+          >页码：<input type="number" name="page" value="1" min="1"
+        /></label>
+        <button type="submit">查询</button>
+      </form>
+      <div id="result"></div>
+    </div>
+    <script src="test.js"></script>
+  </body>
+</html>

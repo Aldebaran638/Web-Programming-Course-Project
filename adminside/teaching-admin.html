@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教学管理端 - 成绩管理教学平台</title>
+    <link rel="stylesheet" href="css/teaching-admin.css">
+    <link rel="stylesheet" href="css/data-management.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="teaching-admin-header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-university"></i>
+                <span>教学管理平台</span>
+            </div>
+            <div class="user-info">
+                <div class="user-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="user-details">
+                    <span class="user-name">教学管理员</span>
+                    <span class="user-role">教学管理端</span>
+                </div>
+                <button class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> 退出
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="teaching-admin-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <h3><i class="fas fa-database"></i> 教学基础数据</h3>
+                    <ul>
+                        <li class="active" data-tab="classes">
+                            <i class="fas fa-users-class"></i> 班级管理
+                        </li>
+                        <li data-tab="students">
+                            <i class="fas fa-user-graduate"></i> 学生管理
+                        </li>
+                        <li data-tab="teachers">
+                            <i class="fas fa-chalkboard-teacher"></i> 教师管理
+                        </li>
+                        <li data-tab="courses">
+                            <i class="fas fa-book-open"></i> 课程管理
+                        </li>
+                        <li data-tab="semester-plan">
+                            <i class="fas fa-calendar-alt"></i> 学期开课计划
+                        </li>
+                        <li data-tab="classroom">
+                            <i class="fas fa-building"></i> 教室安排
+                        </li>
+                        <li data-tab="timetable">
+                            <i class="fas fa-table"></i> 课程表管理
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h3><i class="fas fa-clipboard-check"></i> 成绩审核与发布</h3>
+                    <ul>
+                        <li data-tab="grade-audit">
+                            <i class="fas fa-search"></i> 成绩异常监控
+                        </li>
+                        <li data-tab="grade-review">
+                            <i class="fas fa-check-double"></i> 成绩审核
+                        </li>
+                        <li data-tab="grade-publish">
+                            <i class="fas fa-bullhorn"></i> 成绩发布
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h3><i class="fas fa-chart-bar"></i> 统计报表</h3>
+                    <ul>
+                        <li data-tab="statistics">
+                            <i class="fas fa-chart-line"></i> 教学统计
+                        </li>
+                        <li data-tab="reports">
+                            <i class="fas fa-file-alt"></i> 报表生成
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="system-status">
+                    <i class="fas fa-circle status-online"></i>
+                    <span>系统运行正常</span>
+                </div>
+                <div class="last-login">
+                    最后登录: <span id="last-login-time">今天 09:30</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 班级管理 -->
+            <section id="classes" class="content-section active">
+                <div class="section-header">
+                    <h2><i class="fas fa-users-class"></i> 班级管理</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="add-class-btn">
+                            <i class="fas fa-plus"></i> 新增班级
+                        </button>
+                        <button class="btn btn-secondary" id="import-classes-btn">
+                            <i class="fas fa-file-import"></i> 批量导入
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label>院系:</label>
+                        <select id="class-department-filter">
+                            <option value="">全部院系</option>
+                            <option value="计算机学院">计算机学院</option>
+                            <option value="数学学院">数学学院</option>
+                            <option value="物理学院">物理学院</option>
+                            <option value="文学院">文学院</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>年级:</label>
+                        <select id="class-grade-filter">
+                            <option value="">全部年级</option>
+                            <option value="2021">2021级</option>
+                            <option value="2022">2022级</option>
+                            <option value="2023">2023级</option>
+                            <option value="2024">2024级</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <input type="text" id="class-search" placeholder="搜索班级名称或编号...">
+                        <button class="search-btn"><i class="fas fa-search"></i></button>
+                    </div>
+                </div>
+                
+                <div class="data-table-container">
+                    <table class="data-table" id="class-table">
+                        <thead>
+                            <tr>
+                                <th>班级编号</th>
+                                <th>班级名称</th>
+                                <th>所属院系</th>
+                                <th>年级</th>
+                                <th>班级人数</th>
+                                <th>班主任</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="class-table-body">
+                            <!-- 数据由JS动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="pagination" id="class-pagination">
+                    <button class="pagination-btn" disabled><i class="fas fa-chevron-left"></i></button>
+                    <span class="page-info">第 <span id="class-current-page">1</span> 页，共 <span id="class-total-pages">1</span> 页</span>
+                    <button class="pagination-btn"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </section>
+
+            <!-- 学生管理 -->
+            <section id="students" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-user-graduate"></i> 学生管理</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="add-student-btn">
+                            <i class="fas fa-user-plus"></i> 新增学生
+                        </button>
+                        <button class="btn btn-secondary" id="import-students-btn">
+                            <i class="fas fa-file-import"></i> 批量导入
+                        </button>
+                        <button class="btn btn-secondary" id="export-students-btn">
+                            <i class="fas fa-file-export"></i> 导出数据
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label>班级:</label>
+                        <select id="student-class-filter">
+                            <option value="">全部班级</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>学号:</label>
+                        <input type="text" id="student-id-filter" placeholder="输入学号">
+                    </div>
+                    <div class="filter-group">
+                        <label>姓名:</label>
+                        <input type="text" id="student-name-filter" placeholder="输入姓名">
+                    </div>
+                    <div class="filter-group">
+                        <button class="btn btn-primary" id="search-students-btn">搜索</button>
+                        <button class="btn btn-secondary" id="reset-student-filter">重置</button>
+                    </div>
+                </div>
+                
+                <div class="data-table-container">
+                    <table class="data-table" id="student-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all-students"></th>
+                                <th>学号</th>
+                                <th>姓名</th>
+                                <th>性别</th>
+                                <th>班级</th>
+                                <th>院系</th>
+                                <th>入学时间</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-table-body">
+                            <!-- 数据由JS动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="batch-actions">
+                    <button class="btn btn-secondary" id="batch-assign-class">
+                        <i class="fas fa-users"></i> 批量分配班级
+                    </button>
+                    <button class="btn btn-secondary" id="batch-export">
+                        <i class="fas fa-download"></i> 批量导出
+                    </button>
+                    <button class="btn btn-danger" id="batch-delete">
+                        <i class="fas fa-trash-alt"></i> 批量删除
+                    </button>
+                </div>
+                
+                <div class="pagination" id="student-pagination">
+                    <!-- 分页控件 -->
+                </div>
+            </section>
+
+            <!-- 教师管理 -->
+            <section id="teachers" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-chalkboard-teacher"></i> 教师管理</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="add-teacher-btn">
+                            <i class="fas fa-user-plus"></i> 新增教师
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="data-table-container">
+                    <table class="data-table" id="teacher-table">
+                        <thead>
+                            <tr>
+                                <th>工号</th>
+                                <th>姓名</th>
+                                <th>性别</th>
+                                <th>职称</th>
+                                <th>所属院系</th>
+                                <th>研究方向</th>
+                                <th>联系电话</th>
+                                <th>邮箱</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teacher-table-body">
+                            <!-- 数据由JS动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 课程管理 -->
+            <section id="courses" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-book-open"></i> 课程管理</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="add-course-btn">
+                            <i class="fas fa-plus"></i> 新增课程
+                        </button>
+                        <button class="btn btn-secondary" id="import-courses-btn">
+                            <i class="fas fa-file-import"></i> 批量导入
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label>开课院系:</label>
+                        <select id="course-department-filter">
+                            <option value="">全部院系</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>课程类型:</label>
+                        <select id="course-type-filter">
+                            <option value="">全部类型</option>
+                            <option value="必修">必修课</option>
+                            <option value="选修">选修课</option>
+                            <option value="通识">通识课</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="data-table-container">
+                    <table class="data-table" id="course-table">
+                        <thead>
+                            <tr>
+                                <th>课程编号</th>
+                                <th>课程名称</th>
+                                <th>学分</th>
+                                <th>学时</th>
+                                <th>课程类型</th>
+                                <th>开课院系</th>
+                                <th>主讲教师</th>
+                                <th>选课人数</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="course-table-body">
+                            <!-- 数据由JS动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 学期开课计划 -->
+            <section id="semester-plan" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-calendar-alt"></i> 学期开课计划</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="add-semester-plan-btn">
+                            <i class="fas fa-plus"></i> 制定开课计划
+                        </button>
+                        <button class="btn btn-secondary" id="copy-last-semester-btn">
+                            <i class="fas fa-copy"></i> 复制上学期
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="semester-selector">
+                    <div class="current-semester">
+                        <span class="semester-label">当前学期:</span>
+                        <span class="semester-value">2023-2024学年 第二学期</span>
+                    </div>
+                    <div class="semester-nav">
+                        <button class="btn btn-secondary"><i class="fas fa-chevron-left"></i> 上学期</button>
+                        <select id="semester-select">
+                            <option value="2023-2">2023-2024学年 第二学期</option>
+                            <option value="2023-1">2023-2024学年 第一学期</option>
+                            <option value="2022-2">2022-2023学年 第二学期</option>
+                        </select>
+                        <button class="btn btn-secondary">下学期 <i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                
+                <div class="plan-editor">
+                    <div class="plan-list-container">
+                        <div class="plan-list-header">
+                            <h3>开课计划列表</h3>
+                            <button class="btn btn-small" id="add-course-to-plan">
+                                <i class="fas fa-plus"></i> 添加课程
+                            </button>
+                        </div>
+                        <div class="plan-list" id="plan-list">
+                            <!-- 开课计划列表 -->
+                        </div>
+                    </div>
+                    
+                    <div class="plan-details-container">
+                        <div class="plan-details-header">
+                            <h3>课程安排详情</h3>
+                            <span class="course-count">已选课程: <span id="selected-course-count">0</span> 门</span>
+                        </div>
+                        <div class="plan-details" id="plan-details">
+                            <div class="empty-plan">
+                                <i class="fas fa-calendar-plus"></i>
+                                <p>请从左侧选择课程进行安排</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="plan-summary">
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h4>总开课数</h4>
+                            <p class="summary-value" id="total-courses">0</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-user-graduate"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h4>预计学生数</h4>
+                            <p class="summary-value" id="total-students">0</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h4>参与教师</h4>
+                            <p class="summary-value" id="total-teachers">0</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="summary-content">
+                            <h4>总学时</h4>
+                            <p class="summary-value" id="total-hours">0</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 教室安排 -->
+            <section id="classroom" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-building"></i> 教室安排</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="add-classroom-btn">
+                            <i class="fas fa-plus"></i> 新增教室
+                        </button>
+                        <button class="btn btn-secondary" id="auto-arrange-btn">
+                            <i class="fas fa-robot"></i> 智能排课
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="classroom-management">
+                    <div class="classroom-list">
+                        <h3>教室列表</h3>
+                        <div class="classroom-filter">
+                            <input type="text" placeholder="搜索教室..." id="classroom-search">
+                            <select id="classroom-building-filter">
+                                <option value="">全部教学楼</option>
+                            </select>
+                        </div>
+                        <div class="classroom-items" id="classroom-items">
+                            <!-- 教室列表 -->
+                        </div>
+                    </div>
+                    
+                    <div class="classroom-schedule">
+                        <h3>教室课表 <span id="selected-classroom-name">(未选择教室)</span></h3>
+                        <div class="week-selector">
+                            <button class="btn btn-small"><i class="fas fa-chevron-left"></i></button>
+                            <span class="week-display">第 <span id="current-week">1</span> 周</span>
+                            <button class="btn btn-small"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                        <div class="schedule-grid" id="classroom-schedule-grid">
+                            <!-- 课表格子 -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 课程表管理 -->
+            <section id="timetable" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-table"></i> 课程表管理</h2>
+                    <div class="header-actions">
+                        <select id="timetable-type">
+                            <option value="student">学生课表</option>
+                            <option value="teacher">教师课表</option>
+                            <option value="classroom">教室课表</option>
+                        </select>
+                        <button class="btn btn-secondary" id="print-timetable">
+                            <i class="fas fa-print"></i> 打印课表
+                        </button>
+                        <button class="btn btn-secondary" id="export-timetable">
+                            <i class="fas fa-file-export"></i> 导出课表
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="timetable-container">
+                    <div class="timetable-selector">
+                        <div class="selector-group">
+                            <label id="timetable-label">选择学生:</label>
+                            <select id="timetable-target">
+                                <!-- 动态加载学生/教师/教室 -->
+                            </select>
+                        </div>
+                        <div class="selector-group">
+                            <label>学期:</label>
+                            <select id="timetable-semester">
+                                <option value="2023-2">2023-2024学年 第二学期</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" id="view-timetable">查看课表</button>
+                    </div>
+                    
+                    <div class="timetable-view" id="timetable-view">
+                        <div class="empty-timetable">
+                            <i class="fas fa-table"></i>
+                            <p>请选择查看对象后生成课表</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 成绩异常监控 -->
+            <section id="grade-audit" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-search"></i> 成绩异常监控</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="run-anomaly-detection">
+                            <i class="fas fa-play"></i> 运行检测
+                        </button>
+                        <button class="btn btn-secondary" id="export-anomaly-report">
+                            <i class="fas fa-file-export"></i> 导出报告
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="anomaly-summary">
+                    <div class="anomaly-card warning">
+                        <div class="anomaly-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="anomaly-content">
+                            <h4>课程维度异常</h4>
+                            <p class="anomaly-value" id="course-anomaly-count">0</p>
+                            <p class="anomaly-desc">优秀率过高/及格率过低</p>
+                        </div>
+                    </div>
+                    <div class="anomaly-card danger">
+                        <div class="anomaly-icon">
+                            <i class="fas fa-user-slash"></i>
+                        </div>
+                        <div class="anomaly-content">
+                            <h4>学生维度异常</h4>
+                            <p class="anomaly-value" id="student-anomaly-count">0</p>
+                            <p class="anomaly-desc">成绩突然变化</p>
+                        </div>
+                    </div>
+                    <div class="anomaly-card info">
+                        <div class="anomaly-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="anomaly-content">
+                            <h4>已审核课程</h4>
+                            <p class="anomaly-value" id="reviewed-course-count">0</p>
+                            <p class="anomaly-desc">通过审核的课程</p>
+                        </div>
+                    </div>
+                    <div class="anomaly-card success">
+                        <div class="anomaly-icon">
+                            <i class="fas fa-bullhorn"></i>
+                        </div>
+                        <div class="anomaly-content">
+                            <h4>已发布成绩</h4>
+                            <p class="anomaly-value" id="published-grade-count">0</p>
+                            <p class="anomaly-desc">学生可见的成绩</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="anomaly-tabs">
+                    <button class="tab-btn active" data-tab="course-anomaly">课程维度异常</button>
+                    <button class="tab-btn" data-tab="student-anomaly">学生维度异常</button>
+                    <button class="tab-btn" data-tab="detection-settings">检测设置</button>
+                </div>
+                
+                <div class="tab-content active" id="course-anomaly-tab">
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <label>异常类型:</label>
+                            <select id="course-anomaly-type">
+                                <option value="all">全部类型</option>
+                                <option value="high-excellent">优秀率过高</option>
+                                <option value="low-pass">及格率过低</option>
+                                <option value="grade-gap">成绩断层</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>学期:</label>
+                            <select id="course-anomaly-semester">
+                                <option value="all">全部学期</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="data-table-container">
+                        <table class="data-table" id="course-anomaly-table">
+                            <thead>
+                                <tr>
+                                    <th>课程编号</th>
+                                    <th>课程名称</th>
+                                    <th>授课教师</th>
+                                    <th>学期</th>
+                                    <th>异常类型</th>
+                                    <th>异常指标</th>
+                                    <th>检测时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="course-anomaly-body">
+                                <!-- 异常数据 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="student-anomaly-tab">
+                    <!-- 学生维度异常内容 -->
+                </div>
+                
+                <div class="tab-content" id="detection-settings-tab">
+                    <div class="settings-card">
+                        <h3><i class="fas fa-cog"></i> 异常检测设置</h3>
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label>优秀率阈值 (%)</label>
+                                <input type="number" id="excellent-threshold" value="40" min="0" max="100">
+                                <p class="form-hint">优秀率超过此值将被标记为异常</p>
+                            </div>
+                            <div class="form-group">
+                                <label>及格率阈值 (%)</label>
+                                <input type="number" id="pass-threshold" value="60" min="0" max="100">
+                                <p class="form-hint">及格率低于此值将被标记为异常</p>
+                            </div>
+                            <div class="form-group">
+                                <label>成绩波动阈值 (分)</label>
+                                <input type="number" id="fluctuation-threshold" value="20" min="0" max="100">
+                                <p class="form-hint">学生成绩较上学期波动超过此值将被标记</p>
+                            </div>
+                            <div class="form-group">
+                                <label>自动检测频率</label>
+                                <select id="detection-frequency">
+                                    <option value="weekly">每周一次</option>
+                                    <option value="daily" selected>每日一次</option>
+                                    <option value="manual">手动执行</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" id="save-detection-settings">保存设置</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 成绩审核 -->
+            <section id="grade-review" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-check-double"></i> 成绩审核</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="batch-approve">
+                            <i class="fas fa-check"></i> 批量通过
+                        </button>
+                        <button class="btn btn-secondary" id="batch-return">
+                            <i class="fas fa-redo"></i> 批量退回
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="review-status-filter">
+                    <div class="status-filter">
+                        <button class="status-btn active" data-status="all">全部</button>
+                        <button class="status-btn" data-status="pending">待审核</button>
+                        <button class="status-btn" data-status="approved">已通过</button>
+                        <button class="status-btn" data-status="returned">已退回</button>
+                        <button class="status-btn" data-status="anomaly">有异常</button>
+                    </div>
+                </div>
+                
+                <div class="review-list-container">
+                    <div class="review-list" id="review-list">
+                        <!-- 审核列表 -->
+                    </div>
+                    
+                    <div class="review-details" id="review-details">
+                        <div class="empty-review">
+                            <i class="fas fa-clipboard-list"></i>
+                            <p>请从左侧选择课程进行审核</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 成绩发布 -->
+            <section id="grade-publish" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-bullhorn"></i> 成绩发布</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="publish-selected">
+                            <i class="fas fa-paper-plane"></i> 发布选中
+                        </button>
+                        <button class="btn btn-danger" id="revoke-published">
+                            <i class="fas fa-undo"></i> 撤销发布
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="publish-controls">
+                    <div class="control-group">
+                        <label>发布时间:</label>
+                        <input type="datetime-local" id="publish-time">
+                        <button class="btn btn-secondary" id="set-publish-time">设置时间</button>
+                    </div>
+                    <div class="control-group">
+                        <label>发布范围:</label>
+                        <select id="publish-scope">
+                            <option value="all">全部学生</option>
+                            <option value="graduating">仅毕业班</option>
+                            <option value="specific">指定班级</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="publish-list">
+                    <table class="data-table" id="publish-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all-publish"></th>
+                                <th>课程编号</th>
+                                <th>课程名称</th>
+                                <th>授课教师</th>
+                                <th>学期</th>
+                                <th>审核状态</th>
+                                <th>发布状态</th>
+                                <th>发布时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="publish-table-body">
+                            <!-- 发布列表 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="publish-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">待发布课程:</span>
+                        <span class="summary-value" id="pending-publish-count">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">已发布课程:</span>
+                        <span class="summary-value success" id="published-count">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">今日发布:</span>
+                        <span class="summary-value" id="today-publish-count">0</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 模态框容器 -->
+    <div id="modal-container"></div>
+
+    <!-- 脚本文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/base-data-management.js"></script>
+    <script src="js/grade-audit.js"></script>
+    <script src="js/teaching-admin.js"></script>
+</body>
+</html>

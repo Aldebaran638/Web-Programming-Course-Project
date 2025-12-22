@@ -1,0 +1,219 @@
+body {
+    background: #f6f8fa;
+    font-family: 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+.container {
+    max-width: 480px;
+    margin: 48px auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    padding: 32px 28px 24px 28px;
+}
+h2 {
+    text-align: center;
+    color: #2d3a4b;
+    margin-bottom: 32px;
+}
+.form-group {
+    margin-bottom: 20px;
+}
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: #34495e;
+    font-weight: 500;
+}
+input[type="text"],
+input[type="number"],
+input[type="datetime-local"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 15px;
+    background: #f9fafb;
+    transition: border 0.2s;
+}
+input:focus, textarea:focus, select:focus {
+    border-color: #4f8cff;
+    outline: none;
+    background: #fff;
+}
+textarea {
+    resize: vertical;
+}
+.required {
+    color: #e74c3c;
+    font-size: 14px;
+}
+.submit-btn {
+    width: 100%;
+    padding: 12px 0;
+    background: linear-gradient(90deg, #4f8cff 0%, #38b2ff 100%);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.2s;
+}
+.submit-btn:hover {
+    background: linear-gradient(90deg, #357ae8 0%, #2b9ed8 100%);
+}
+.result {
+    margin-top: 24px;
+    min-height: 32px;
+    text-align: center;
+    font-size: 16px;
+}
+.result.success {
+    color: #27ae60;
+}
+.result.error {
+    color: #e74c3c;
+}
+
+/* 提交情况表格样式 */
+#submissionTableWrapper {
+    margin-top: 18px;
+    overflow-x: auto;
+}
+table.submission-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    background: #f9fafb;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 15px;
+}
+table.submission-table th, table.submission-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #e1e4e8;
+    text-align: left;
+}
+table.submission-table th {
+    background: #f0f4fa;
+    color: #34495e;
+    font-weight: 600;
+}
+table.submission-table tr:last-child td {
+    border-bottom: none;
+}
+table.submission-table td.status-graded {
+    color: #27ae60;
+    font-weight: 600;
+}
+table.submission-table td.status-pending {
+    color: #e67e22;
+    font-weight: 600;
+}
+
+/* 授课列表表格样式（与提交表格风格一致） */
+#teachingAssignmentsTableWrapper {
+    margin-top: 18px;
+    overflow-x: auto;
+}
+table.teaching-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    background: #f9fafb;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 15px;
+}
+table.teaching-table th, table.teaching-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #e1e4e8;
+    text-align: left;
+}
+table.teaching-table th {
+    background: #f0f4fa;
+    color: #34495e;
+    font-weight: 600;
+}
+table.teaching-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* 资料上传表单样式（复用表单风格） */
+#materialUploadForm {
+    margin-bottom: 0;
+}
+#materialUploadResult {
+    margin-top: 18px;
+}
+
+/* 课程配置表单样式 */
+#courseConfigForm {
+    margin-bottom: 0;
+}
+#courseConfigResult {
+    margin-top: 18px;
+}
+
+/* 成绩组成项表单样式 */
+#gradeItemForm {
+    margin-bottom: 0;
+}
+#gradeItemResult {
+    margin-top: 18px;
+}
+
+/* 录入/修改成绩表单样式 */
+#updateGradeForm {
+    margin-bottom: 0;
+}
+#updateGradeResult {
+    margin-top: 18px;
+}
+
+/* 批量导入成绩表单样式 */
+#batchUploadGradesForm {
+    margin-bottom: 0;
+}
+#batchUploadGradesResult {
+    margin-top: 18px;
+}
+#batchUploadGradesDetails {
+    margin-top: 12px;
+    overflow-x: auto;
+}
+table.batch-upload-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    background: #f9fafb;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 15px;
+}
+table.batch-upload-table th, table.batch-upload-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #e1e4e8;
+    text-align: left;
+}
+table.batch-upload-table th {
+    background: #f0f4fa;
+    color: #34495e;
+    font-weight: 600;
+}
+table.batch-upload-table tr:last-child td {
+    border-bottom: none;
+}
+table.batch-upload-table td.status-failed {
+    color: #e74c3c;
+    font-weight: 600;
+}
+table.batch-upload-table td.status-success {
+    color: #27ae60;
+    font-weight: 600;
+}

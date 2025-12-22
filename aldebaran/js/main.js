@@ -13,11 +13,24 @@ function bindHomeEntryEvents() {
     const loginBtn = document.getElementById('entry-login');
     const coursesBtn = document.getElementById('entry-courses');
     if (loginBtn) {
-        loginBtn.onclick = () => alert('跳转到登录界面（待实现）');
+        loginBtn.onclick = function() {
+            loadLoginPage();
+        };
     }
     if (coursesBtn) {
         coursesBtn.onclick = loadClassInfo;
     }
+}
+// 动态加载登录页面
+function loadLoginPage() {
+    fetch('htmls/login.html')
+        .then(res => res.text())
+        .then(html => {
+            document.getElementById('main-content').innerHTML = html;
+            loadScript('js/login.js', function() {
+                if (window.initLoginPage) window.initLoginPage();
+            });
+        });
 }
 
 // 顶部导航按钮事件

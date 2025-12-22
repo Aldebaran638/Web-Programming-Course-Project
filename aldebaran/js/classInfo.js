@@ -74,9 +74,16 @@
 
   function bindBackToHome() {
       const btn = document.getElementById('back-to-home');
-      if (btn) btn.onclick = function() {
-          if (window.loadHome) window.loadHome();
-      };
+      if (btn) {
+          btn.onclick = function(e) {
+              e.preventDefault();
+              if (typeof loadHome === 'function') {
+                  loadHome();
+              } else if (window.location) {
+                  window.location.reload();
+              }
+          };
+      }
   }
 
   function initClassInfoPage() {

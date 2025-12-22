@@ -381,6 +381,16 @@ def create_enrollment(payload: Dict[str, Any]):
         "enrollment_date": "2025-09-01T10:00:00Z"
     }
 
+@app.delete("/api/v1/enrollments/{enrollment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_enrollment(enrollment_id: int):
+    """学生退选课程（骨架实现）。
+
+    实际项目中应根据当前登录学生和 enrollment_id
+    去数据库中删除/标记删除这条选课记录，并进行权限校验。
+    这里作为演示仅返回 204 No Content。
+    """
+    return
+
 @app.get("/api/v1/me/enrollments")
 def list_my_enrollments(semester: Optional[str] = None):
     return [

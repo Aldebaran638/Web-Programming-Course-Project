@@ -6,7 +6,7 @@ document.getElementById('assignmentForm').addEventListener('submit', async funct
     const deadline = document.getElementById('deadline').value;
     const type = document.getElementById('type').value;
     const fileInput = document.getElementById('file');
-    const resultDiv = document.getElementById('result');
+    const resultDiv = document.getElementById('assignmentResult');
 
     if (!courseId || !title || !type) {
         resultDiv.textContent = '请填写所有必填项。';

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统管理中心 - 成绩管理教学平台</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="sys-admin-container">
+        <!-- 侧边栏导航 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-cogs"></i>
+                    <h2>系统管理中心</h2>
+                </div>
+                <div class="user-info">
+                    <div class="avatar">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <div class="user-details">
+                        <span class="username" id="username">系统管理员</span>
+                        <span class="role">系统管理员</span>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="sidebar-menu">
+                <div class="menu-section">
+                    <h3 class="section-title">系统管理</h3>
+                    <ul>
+                        <li class="active">
+                            <a href="#dashboard">
+                                <i class="fas fa-tachometer-alt"></i>
+                                <span>控制面板</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="logs.html">
+                                <i class="fas fa-clipboard-list"></i>
+                                <span>日志审计</span>
+                                <span class="badge" id="log-count">0</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="backup.html">
+                                <i class="fas fa-database"></i>
+                                <span>备份与恢复</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="menu-section">
+                    <h3 class="section-title">快速操作</h3>
+                    <ul>
+                        <li>
+                            <a href="#" onclick="createBackup()">
+                                <i class="fas fa-save"></i>
+                                <span>立即备份</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="logs.html?action=ERROR">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>查看错误日志</span>
+                                <span class="badge error" id="error-count">0</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" onclick="showSystemStatus()">
+                                <i class="fas fa-heartbeat"></i>
+                                <span>系统状态</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="menu-section">
+                    <h3 class="section-title">其他</h3>
+                    <ul>
+                        <li>
+                            <a href="../index.html" target="_blank">
+                                <i class="fas fa-home"></i>
+                                <span>返回首页</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" id="logout-btn">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>退出登录</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="system-status">
+                    <div class="status-item">
+                        <span class="status-label">系统状态</span>
+                        <span class="status-indicator online"></span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">最后备份</span>
+                        <span class="status-value" id="last-backup">从未备份</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>系统控制面板</h1>
+                    <p class="subtitle">监控和管理整个教学平台</p>
+                </div>
+                <div class="header-right">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="搜索操作记录...">
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="window.location.href='logs.html'">
+                            <i class="fas fa-clipboard-list"></i> 日志审计
+                        </button>
+                        <button class="btn btn-secondary" onclick="window.location.href='backup.html'">
+                            <i class="fas fa-database"></i> 备份恢复
+                        </button>
+                    </div>
+                </div>
+            </header>
+            
+            <div class="content-wrapper">
+                <!-- 欢迎卡片 -->
+                <section class="welcome-card">
+                    <div class="welcome-content">
+                        <h2><i class="fas fa-shield-alt"></i> 欢迎回来，系统管理员</h2>
+                        <p>您正在管理成绩管理教学平台的核心系统。请谨慎操作所有管理功能，特别是数据备份与恢复操作。</p>
+                        <div class="welcome-actions">
+                            <button class="btn btn-primary" onclick="window.location.href='logs.html'">
+                                <i class="fas fa-clipboard-list"></i> 查看系统日志
+                            </button>
+                            <button class="btn btn-outline" onclick="window.location.href='backup.html'">
+                                <i class="fas fa-database"></i> 管理数据备份
+                            </button>
+                        </div>
+                    </div>
+                    <div class="welcome-illustration">
+                        <i class="fas fa-server"></i>
+                    </div>
+                </section>
+                
+                <!-- 功能卡片 -->
+                <section class="dashboard-section">
+                    <h3 class="section-title">核心管理功能</h3>
+                    <div class="cards-grid">
+                        <div class="card feature-card" onclick="window.location.href='logs.html'">
+                            <div class="card-icon log-audit">
+                                <i class="fas fa-clipboard-list"></i>
+                            </div>
+                            <div class="card-content">
+                                <h4>日志审计</h4>
+                                <p>查看系统操作记录，监控用户活动，审计安全事件。</p>
+                                <div class="card-stats">
+                                    <div class="stat">
+                                        <span class="stat-label">今日日志</span>
+                                        <span class="stat-value" id="today-logs">0</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label">警告</span>
+                                        <span class="stat-value error" id="warning-logs">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-action">
+                                <span>进入管理 <i class="fas fa-arrow-right"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div class="card feature-card" onclick="window.location.href='backup.html'">
+                            <div class="card-icon backup">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="card-content">
+                                <h4>备份与恢复</h4>
+                                <p>创建系统备份，恢复误删数据，管理数据安全。</p>
+                                <div class="card-stats">
+                                    <div class="stat">
+                                        <span class="stat-label">备份数量</span>
+                                        <span class="stat-value" id="backup-count">0</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label">存储空间</span>
+                                        <span class="stat-value">2.4GB</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-action">
+                                <span>进入管理 <i class="fas fa-arrow-right"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div class="card feature-card" onclick="showSystemStatus()">
+                            <div class="card-icon system-health">
+                                <i class="fas fa-heartbeat"></i>
+                            </div>
+                            <div class="card-content">
+                                <h4>系统健康</h4>
+                                <p>监控系统性能，查看资源使用情况，诊断问题。</p>
+                                <div class="card-stats">
+                                    <div class="stat">
+                                        <span class="stat-label">运行时间</span>
+                                        <span class="stat-value">99.8%</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label">响应时间</span>
+                                        <span class="stat-value">142ms</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-action">
+                                <span>查看详情 <i class="fas fa-arrow-right"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- 最近活动 -->
+                <section class="dashboard-section">
+                    <div class="section-header">
+                        <h3 class="section-title">最近系统活动</h3>
+                        <a href="logs.html" class="view-all">查看全部 <i class="fas fa-external-link-alt"></i></a>
+                    </div>
+                    <div class="recent-activity">
+                        <div class="activity-list" id="recent-activities">
+                            <!-- 通过JS动态填充 -->
+                            <div class="activity-item loading">
+                                <div class="activity-icon">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title">加载中...</div>
+                                    <div class="activity-time">请稍候</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- 快速统计 -->
+                <section class="dashboard-section">
+                    <h3 class="section-title">系统概览</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon users">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>总用户数</h4>
+                                <div class="stat-value" id="total-users">0</div>
+                                <div class="stat-change">
+                                    <span class="change-up">↑ 2.5%</span> 较上月
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon logs">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>日志总数</h4>
+                                <div class="stat-value" id="total-logs">0</div>
+                                <div class="stat-change">
+                                    <span class="change-up">↑ 15.3%</span> 较上月
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon courses">
+                                <i class="fas fa-book"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>课程数量</h4>
+                                <div class="stat-value" id="total-courses">0</div>
+                                <div class="stat-change">
+                                    <span class="change-up">↑ 5.1%</span> 较上月
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon security">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>安全事件</h4>
+                                <div class="stat-value" id="security-events">0</div>
+                                <div class="stat-change">
+                                    <span class="change-down">↓ 12.7%</span> 较上月
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            
+            <footer class="main-footer">
+                <p>© 2025 成绩管理教学平台 - 系统管理端 | 最后更新: <span id="last-update">今天 10:30</span></p>
+                <p class="footer-links">
+                    <a href="#" onclick="showSystemStatus()">系统状态</a> | 
+                    <a href="#" onclick="createBackup()">立即备份</a> | 
+                    <a href="logs.html">操作日志</a> | 
+                    <a href="#" id="refresh-data">刷新数据</a>
+                </p>
+            </footer>
+        </main>
+    </div>
+    
+    <!-- 系统状态弹窗 -->
+    <div class="modal" id="system-status-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-heartbeat"></i> 系统状态</h3>
+                <button class="close-modal" onclick="closeModal('system-status-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="status-grid">
+                    <div class="status-item full">
+                        <div class="status-header">
+                            <h4><i class="fas fa-server"></i> 服务器状态</h4>
+                            <span class="status-badge online">在线</span>
+                        </div>
+                        <div class="status-details">
+                            <p><strong>运行时间:</strong> <span id="uptime">15天 2小时 30分</span></p>
+                            <p><strong>CPU使用率:</strong> <span id="cpu-usage">24%</span></p>
+                            <p><strong>内存使用:</strong> <span id="memory-usage">1.8GB / 4GB</span></p>
+                            <p><strong>数据库连接:</strong> <span id="db-connections">12/50</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="status-item full">
+                        <div class="status-header">
+                            <h4><i class="fas fa-database"></i> 数据库状态</h4>
+                            <span class="status-badge healthy">健康</span>
+                        </div>
+                        <div class="status-details">
+                            <p><strong>数据库大小:</strong> <span id="db-size">348MB</span></p>
+                            <p><strong>表数量:</strong> <span id="table-count">16</span></p>
+                            <p><strong>查询速度:</strong> <span id="query-speed">平均 45ms</span></p>
+                            <p><strong>最后优化:</strong> <span id="last-optimization">2025-12-15</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="status-item full">
+                        <div class="status-header">
+                            <h4><i class="fas fa-shield-alt"></i> 安全状态</h4>
+                            <span class="status-badge secure">安全</span>
+                        </div>
+                        <div class="status-details">
+                            <p><strong>最后备份:</strong> <span id="modal-last-backup">2025-12-20 02:00</span></p>
+                            <p><strong>失败登录尝试:</strong> <span id="failed-logins">3 (今日)</span></p>
+                            <p><strong>SSL证书:</strong> <span id="ssl-status">有效 (60天后过期)</span></p>
+                            <p><strong>防火墙状态:</strong> <span id="firewall-status">启用</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('system-status-modal')">关闭</button>
+                <button class="btn btn-primary" onclick="window.location.href='logs.html'">查看详细日志</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

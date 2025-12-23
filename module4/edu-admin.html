@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成绩管理教学平台 - 教学管理员</title>
+    <link rel="stylesheet" href="edu-admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="edu-admin-container">
+        <!-- 侧边导航栏 -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-graduation-cap"></i>
+                    <h2>教学管理</h2>
+                </div>
+            </div>
+            
+            <div class="user-info">
+                <div class="avatar">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="user-details">
+                    <h4 id="username">管理员</h4>
+                    <span class="role-badge">教学管理员</span>
+                </div>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="active" data-page="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>仪表板</span>
+                </li>
+                <li data-page="class-management">
+                    <i class="fas fa-users"></i>
+                    <span>班级管理</span>
+                </li>
+                <li data-page="student-management">
+                    <i class="fas fa-user-graduate"></i>
+                    <span>学生管理</span>
+                </li>
+                <li data-page="teacher-management">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    <span>教师管理</span>
+                </li>
+                <li data-page="course-management">
+                    <i class="fas fa-book"></i>
+                    <span>课程管理</span>
+                </li>
+                <li data-page="classroom-management">
+                    <i class="fas fa-school"></i>
+                    <span>教室管理</span>
+                </li>
+                <li data-page="teaching-schedule">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>教学安排</span>
+                </li>
+                <li data-page="timetable">
+                    <i class="fas fa-table"></i>
+                    <span>课程表</span>
+                </li>
+                <li data-page="grade-review">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>成绩审核</span>
+                </li>
+                <li data-page="grade-publish">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>成绩发布</span>
+                </li>
+            </ul>
+            
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>退出登录</span>
+                </button>
+            </div>
+        </nav>
+        
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <header class="content-header">
+                <div class="header-left">
+                    <h1 id="page-title">仪表板</h1>
+                    <nav class="breadcrumb">
+                        <span>教学管理</span>
+                        <i class="fas fa-chevron-right"></i>
+                        <span id="current-page">仪表板</span>
+                    </nav>
+                </div>
+                <div class="header-right">
+                    <div class="notifications">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge">3</span>
+                    </div>
+                    <div class="semester-select">
+                        <select id="current-semester">
+                            <option value="2025-2026-1">2025-2026学年 第1学期</option>
+                            <option value="2025-2026-2">2025-2026学年 第2学期</option>
+                        </select>
+                    </div>
+                </div>
+            </header>
+            
+            <div id="content-area">
+                <!-- 内容将动态加载到这里 -->
+            </div>
+        </main>
+    </div>
+
+    <!-- 公共模态框容器 -->
+    <div id="modal-container"></div>
+
+    <script src="edu-admin.js"></script>
+</body>
+</html>

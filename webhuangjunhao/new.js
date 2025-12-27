@@ -1,8 +1,23 @@
-// 简单的登录状态检查：无 token 直接回网关
+// 登录状态与角色检查：仅允许教师访问 new.html
 try {
     const token = localStorage.getItem('token');
-    if (!token) {
+    const userRaw = localStorage.getItem('user');
+    if (!token || !userRaw) {
+        // 无登录信息，一律回网关
         window.location.href = '../aldebaran/page.html';
+    } else {
+        let user = null;
+        try { user = JSON.parse(userRaw); } catch (e) { user = null; }
+        if (!user) {
+            window.location.href = '../aldebaran/page.html';
+        } else if (user.role !== 'teacher') {
+            // 非教师角色：学生跳回学生端，其它回网关
+            if (user.role === 'student') {
+                window.location.href = '../Student-Portal/index.html';
+            } else {
+                window.location.href = '../aldebaran/page.html';
+            }
+        }
     }
 } catch (e) {
     window.location.href = '../aldebaran/page.html';

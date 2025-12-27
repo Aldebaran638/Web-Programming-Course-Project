@@ -1,16 +1,34 @@
-// 检查登录状态
+// 检查登录状态（仅允许学生角色访问学生端）
 function checkLogin() {
     const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+    const userRaw = localStorage.getItem('user');
 
-    // Student-Portal 下的所有业务页面都需要登录；
-    // 如果本地没有凭证，则跳转到统一登录网关 aldebaran/page.html。
-    if (!token || !user) {
+    // 没有任何登录凭证：统一回网关
+    if (!token || !userRaw) {
         window.location.href = '../aldebaran/page.html';
         return null;
     }
 
-    return JSON.parse(user);
+    let user;
+    try {
+        user = JSON.parse(userRaw);
+    } catch (e) {
+        // 本地 user 格式损坏，当作未登录处理
+        window.location.href = '../aldebaran/page.html';
+        return null;
+    }
+
+    // 如果角色不是学生，则根据角色强制跳转到对应前端
+    if (user.role === 'teacher') {
+        window.location.href = '../webhuangjunhao/new.html';
+        return null;
+    } else if (user.role && user.role !== 'student') {
+        // 其他角色暂时统一回网关，由网关按角色再分流
+        window.location.href = '../aldebaran/page.html';
+        return null;
+    }
+
+    return user;
 }
 
 // 登录函数

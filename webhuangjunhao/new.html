@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>布置作业/考试</title>
+    <link rel="stylesheet" href="new.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+        <div class="dashboard-container">
+            <nav class="sidebar">
+                <div class="logo">
+                    <h2><i class="fas fa-chalkboard-teacher"></i> 成绩管理平台</h2>
+                </div>
+                <div class="user-info">
+                    <img src="https://ui-avatars.com/api/?name=教师&background=4A90E2&color=fff" alt="教师头像">
+                    <h3>教师</h3>
+                </div>
+                <ul class="nav-menu">
+                    <li class="active" data-tab="dashboard"><i class="fas fa-tachometer-alt"></i> 仪表板</li>
+                    <li data-tab="courses"><i class="fas fa-book"></i> 课程管理</li>
+                    <li data-tab="assignments"><i class="fas fa-tasks"></i> 作业管理</li>
+                    <li data-tab="grades"><i class="fas fa-chart-bar"></i> 成绩管理</li>
+                </ul>
+            </nav>
+            <main class="main-content">
+                <header class="main-header">
+                    <div class="header-title">成绩管理教学平台 · 教师端</div>
+                    <div class="header-user">欢迎，教师</div>
+                </header>
+                <section id="dashboard" class="content-section active">
+                    <div class="welcome-card card-section">
+                        <h2>欢迎使用成绩管理教学平台</h2>
+                        <p>请通过左侧菜单选择功能。</p>
+                    </div>
+                </section>
+                <section id="courses" class="content-section">
+                    <div class="card-section">
+                        <h2>授课列表</h2>
+                        <form id="teachingAssignmentsForm">
+                            <div class="form-group">
+                                <label for="semester">学期（可选）</label>
+                                <input type="text" id="semester" name="semester" placeholder="如 2025-2026-1">
+                            </div>
+                            <button type="submit" class="submit-btn">查询授课列表</button>
+                        </form>
+                        <div id="teachingAssignmentsResult" class="result"></div>
+                        <div id="teachingAssignmentsTableWrapper"></div>
+                    </div>
+                    <div class="card-section">
+                        <h2>上传课程资料</h2>
+                        <form id="materialUploadForm" enctype="multipart/form-data">
+                            <div class="form-group">
+                                <label for="materialCourseId">课程ID <span class="required">*</span></label>
+                                <input type="number" id="materialCourseId" name="materialCourseId" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="materialType">资料类型 <span class="required">*</span></label>
+                                <select id="materialType" name="materialType" required>
+                                    <option value="document">文档</option>
+                                    <option value="video">视频</option>
+                                    <option value="carousel_image">轮播图</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="materialTitle">资料标题 <span class="required">*</span></label>
+                                <input type="text" id="materialTitle" name="materialTitle" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="materialFile">文件 <span class="required">*</span></label>
+                                <input type="file" id="materialFile" name="materialFile" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="displayOrder">显示顺序（可选）</label>
+                                <input type="number" id="displayOrder" name="displayOrder" min="0">
+                            </div>
+                            <button type="submit" class="submit-btn">上传资料</button>
+                        </form>
+                        <div id="materialUploadResult" class="result"></div>
+                    </div>
+                    <div class="card-section">
+                        <h2>更新课程配置</h2>
+                        <form id="courseConfigForm">
+                            <div class="form-group">
+                                <label for="configCourseId">课程ID <span class="required">*</span></label>
+                                <input type="number" id="configCourseId" name="configCourseId" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="configDescription">课程简介（可选）</label>
+                                <textarea id="configDescription" name="configDescription" rows="2"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>是否开启评论区</label>
+                                <select id="allowComments" name="allowComments">
+                                    <option value="true">开启</option>
+                                    <option value="false">关闭</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>是否开启笔记区</label>
+                                <select id="allowNotes" name="allowNotes">
+                                    <option value="true">开启</option>
+                                    <option value="false">关闭</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="submit-btn">更新配置</button>
+                        </form>
+                        <div id="courseConfigResult" class="result"></div>
+                    </div>
+                </section>
+                <section id="assignments" class="content-section">
+                    <div class="card-section">
+                        <h2>布置作业/考试</h2>
+                        <form id="assignmentForm">
+                            <div class="form-group">
+                                <label for="courseId">课程ID <span class="required">*</span></label>
+                                <input type="number" id="courseId" name="courseId" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="title">标题 <span class="required">*</span></label>
+                                <input type="text" id="title" name="title" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="description">详细说明</label>
+                                <textarea id="description" name="description" rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="deadline">截止日期</label>
+                                <input type="datetime-local" id="deadline" name="deadline">
+                            </div>
+                            <div class="form-group">
+                                <label for="type">类型 <span class="required">*</span></label>
+                                <select id="type" name="type" required>
+                                    <option value="assignment">作业</option>
+                                    <option value="exam">考试</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="file">附件（可选）</label>
+                                <input type="file" id="file" name="file">
+                            </div>
+                            <button type="submit" class="submit-btn">提交</button>
+                        </form>
+                        <div id="assignmentResult" class="result"></div>
+                    </div>
+                    <div class="card-section">
+                        <h2>作业/考试提交情况</h2>
+                        <form id="submissionQueryForm">
+                            <div class="form-group">
+                                <label for="assignmentId">作业/考试ID <span class="required">*</span></label>
+                                <input type="number" id="assignmentId" name="assignmentId" required>
+                            </div>
+                            <button type="submit" class="submit-btn">查询提交情况</button>
+                        </form>
+                        <div id="submissionResult" class="result"></div>
+                        <div id="submissionTableWrapper"></div>
+                    </div>
+                </section>
+                <section id="grades" class="content-section">
+                    
+                    <div class="card-section">
+                        <h2>设置成绩组成项</h2>
+                        <form id="gradeItemForm">
+                            <div class="form-group">
+                                <label for="gradeCourseId">课程ID <span class="required">*</span></label>
+                                <input type="number" id="gradeCourseId" name="gradeCourseId" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="itemName">成绩项名称 <span class="required">*</span></label>
+                                <input type="text" id="itemName" name="itemName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="weight">权重 (0.00-1.00) <span class="required">*</span></label>
+                                <input type="number" id="weight" name="weight" min="0" max="1" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="gradeDescription">描述（可选）</label>
+                                <input type="text" id="gradeDescription" name="gradeDescription">
+                            </div>
+                            <button type="submit" class="submit-btn">添加成绩项</button>
+                        </form>
+                        <div id="gradeItemResult" class="result"></div>
+                    </div>
+                    <div class="card-section">
+                        <h2>录入/修改单个成绩</h2>
+                        <form id="updateGradeForm">
+                            <div class="form-group">
+                                <label for="gradeId">成绩ID <span class="required">*</span></label>
+                                <input type="number" id="gradeId" name="gradeId" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="score">分数 <span class="required">*</span></label>
+                                <input type="number" id="score" name="score" step="0.01" required>
+                            </div>
+                            <button type="submit" class="submit-btn">提交成绩</button>
+                        </form>
+                        <div id="updateGradeResult" class="result"></div>
+                    </div>
+                    <div class="card-section">
+                        <h2>批量导入成绩</h2>
+                        <form id="batchUploadGradesForm" enctype="multipart/form-data">
+                            <div class="form-group">
+                                <label for="batchGradeItemId">成绩项ID <span class="required">*</span></label>
+                                <input type="number" id="batchGradeItemId" name="batchGradeItemId" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="batchGradesFile">成绩文件 <span class="required">*</span></label>
+                                <input type="file" id="batchGradesFile" name="batchGradesFile" accept=".csv,.xls,.xlsx" required>
+                            </div>
+                            <button type="submit" class="submit-btn">上传并导入成绩</button>
+                        </form>
+                        <div id="batchUploadGradesResult" class="result"></div>
+                        <div id="batchUploadGradesDetails"></div>
+                    </div>
+                </section>
+            </main>
+        </div>
+        <script src="new.js"></script>
+        <script>
+        // 侧边栏tab切换逻辑
+        document.querySelectorAll('.nav-menu li').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.nav-menu li').forEach(li => li.classList.remove('active'));
+                tab.classList.add('active');
+                const tabName = tab.getAttribute('data-tab');
+                document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+                if (tabName) {
+                    document.getElementById(tabName).classList.add('active');
+                }
+            });
+        });
+        </script>
+</body>
+</html>

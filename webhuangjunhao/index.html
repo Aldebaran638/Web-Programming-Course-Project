@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>教师端 - 仪表盘</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>教师端：课程与成绩管理</h1>
+    <div id="auth">
+      <button id="btn-login">登录</button>
+      <button id="btn-logout" style="display:none">登出</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="dashboard">
+      <h2>我的授课列表</h2>
+      <div id="assignments-container">
+        <table id="assignments-table">
+          <thead>
+            <tr><th>课程编号</th><th>课程名称</th><th>学期</th><th>操作</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="message" class="hidden"></section>
+  </main>
+
+  <!-- 登录模态 -->
+  <div id="login-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>登录（教师）</h3>
+      <form id="login-form">
+        <label>用户名 <input name="username" required></label>
+        <label>密码 <input name="password" type="password" required></label>
+        <div class="actions">
+          <button type="submit">登录</button>
+          <button type="button" id="login-cancel">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生主页 - 成绩管理教学平台</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">成绩管理系统</div>
+        <div class="nav">
+            <a href="index.html">首页</a>
+            <a href="course-browse.html">浏览课程</a>
+            <a href="my-courses.html">我的课程</a>
+            <a href="grades.html">成绩查询</a>
+            <button onclick="logout()" class="btn-logout">退出</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>欢迎回来，<span id="studentName">学生</span></h1>
+        <div class="quick-links">
+            <div class="link-card" onclick="window.location.href='course-browse.html'">
+                <h3>浏览课程</h3>
+                <p>选修新课程</p>
+            </div>
+            <div class="link-card" onclick="window.location.href='my-courses.html'">
+                <h3>我的课程</h3>
+                <p>查看已选修课程</p>
+            </div>
+            <div class="link-card" onclick="window.location.href='grades.html'">
+                <h3>成绩查询</h3>
+                <p>查看学期成绩</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

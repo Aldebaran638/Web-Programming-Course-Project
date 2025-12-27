@@ -813,6 +813,7 @@ def reset_password(payload: ResetPasswordRequest):
 # 学生端：课程修读与成绩查询（骨架实现）
 # =====================
 
+# 添加选课
 @app.post("/api/v1/enrollments", status_code=status.HTTP_201_CREATED)
 def create_enrollment(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """学生选课：在 Enrollments 表中创建记录。"""
@@ -909,6 +910,19 @@ def delete_enrollment(enrollment_id: int):
     """
     return
 
+# 取消选课
+@app.post("/api/v1/withdraw", status_code=status.HTTP_201_CREATED)
+def remove_enrollment(payload: Dict[str, Any]):
+    # 期望字段：course_id, semester
+    return {
+        "id": 55,
+        "student_id": 10,
+        "course_id": payload.get("course_id", 101),
+        "semester": payload.get("semester", "2025-2026-1"),
+        "enrollment_date": "2025-09-01T10:00:00Z"
+    } 
+
+# 查看选课列表
 @app.get("/api/v1/me/enrollments")
 def list_my_enrollments(semester: Optional[str] = None, current_user: CurrentUser = Depends(get_current_user)):
     """查看当前学生已选课程列表。"""

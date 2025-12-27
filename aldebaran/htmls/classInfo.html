@@ -1,0 +1,71 @@
+<section class="classinfo-section">
+  <h2>课程信息库</h2>
+  <button
+    id="back-to-home"
+    class="back-home-btn"
+    title="返回首页"
+    type="button"
+  >
+    <svg
+      width="28"
+      height="28"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="14" cy="14" r="14" fill="#2d4373" />
+      <path
+        d="M16.5 8L11 14L16.5 20"
+        stroke="#fff"
+        stroke-width="2.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  </button>
+  <form id="course-search-form" class="search-form">
+    <input
+      type="text"
+      name="course_code"
+      placeholder="课程号(仅支持精确搜索)"
+      class="search-input"
+    />
+    <input
+      type="text"
+      name="course_name"
+      placeholder="课程名(支持模糊搜索)"
+      class="search-input"
+    />
+    <input
+      type="text"
+      name="department"
+      placeholder="开课院系"
+      class="search-input"
+    />
+    <input
+      type="number"
+      name="credits"
+      placeholder="学分"
+      class="search-input"
+      min="0"
+      step="0.1"
+    />
+    <select name="sortBy" class="search-select">
+      <option value="course_code">按课程号排序</option>
+      <option value="course_name">按课程名排序</option>
+      <option value="credits">按学分排序</option>
+      <option value="department">按院系排序</option>
+    </select>
+    <select name="order" class="search-select">
+      <option value="asc">升序</option>
+      <option value="desc">降序</option>
+    </select>
+    <button type="submit" class="search-btn">搜索</button>
+  </form>
+  <div id="courses-table-container">
+    <!-- 课程表格将由JS动态渲染 -->
+  </div>
+  <div class="pagination-block" id="pagination-block">
+    <!-- 分页控件由JS渲染 -->
+  </div>
+</section>

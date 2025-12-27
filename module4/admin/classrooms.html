@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>教室管理</title>
+  <link rel="stylesheet" href="../CSS/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <h1>教学管理端</h1>
+    <nav class="top-nav">
+      <a href="index.html">仪表盘</a>
+      <a href="classes.html">班级管理</a>
+      <a href="students.html">学生管理</a>
+      <a href="courses.html">课程管理</a>
+      <a href="teachers.html">教师管理</a>
+      <a href="courseplan.html">开课计划</a>
+      <a href="timetable.html">课程表</a>
+      <a href="grades.html">成绩审核</a>
+      <a href="classrooms.html">教室管理</a>
+    </nav>
+  </header>
+  <div class="admin-container">
+    <aside class="admin-sidebar">
+      <ul>
+        <li><a href="index.html">仪表盘</a></li>
+        <li><a href="classes.html">班级管理</a></li>
+        <li><a href="students.html">学生管理</a></li>
+        <li><a href="courses.html">课程管理</a></li>
+        <li><a href="teachers.html">教师管理</a></li>
+        <li><a href="courseplan.html">开课计划</a></li>
+        <li><a href="timetable.html">课程表</a></li>
+        <li><a href="grades.html">成绩审核</a></li>
+        <li><a href="classrooms.html">教室管理</a></li>
+      </ul>
+    </aside>
+    <main class="admin-main">
+      <h2>教室列表</h2>
+      <form id="roomForm">
+        <label>教室号：<input id="roomNo" /></label>
+        <label>容量：<input id="capacity" type="number"/></label>
+        <button type="button" id="addRoom">添加</button>
+      </form>
+      <table class="simple-table" id="roomsTable">
+        <thead><tr><th>教室</th><th>容量</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td>A101</td><td>60</td><td><button>编辑</button></td></tr>
+        </tbody>
+      </table>
+    </main>
+  </div>
+
+  <script src="api.js"></script>
+  <script>
+    const roomsTbody = document.querySelector('#roomsTable tbody');
+    async function loadRooms(){
+      try{
+        const data = await api.resources.classrooms.list();
+        const items = data && (data.items || data.classrooms || (Array.isArray(data)? data: [])) || [];
+        roomsTbody.innerHTML = '';
+        items.forEach(r=>{
+          const tr = document.createElement('tr'); tr.dataset.id = r.id || '';
+          tr.innerHTML = `<td>${r.room_number||r.name||''}</td><td>${r.capacity||''}</td><td><button class="edit">编辑</button><button class="delete">删除</button></td>`;
+          roomsTbody.appendChild(tr);
+        });
+      }catch(e){
+        // 后端不可用时保留本地添加行为
+        console.warn('加载教室失败，使用本地回退：', e && e.message? e.message : e);
+      }
+    }
+
+    document.getElementById('addRoom').addEventListener('click', async ()=>{
+      const btn = document.getElementById('addRoom');
+      const no = document.getElementById('roomNo').value || '未知';
+      const cap = parseInt(document.getElementById('capacity').value||'0',10);
+      try{
+        btn.disabled = true; btn.textContent = '添加中...';
+        await api.resources.classrooms.create({ room_number: no, capacity: cap });
+        document.getElementById('roomNo').value=''; document.getElementById('capacity').value='';
+        loadRooms();
+      }catch(err){
+        alert('提交教室数据到后端失败，已在本地展示（请确保后端接口存在）。');
+        const tr = document.createElement('tr'); tr.innerHTML = `<td>${no}</td><td>${cap}</td><td><button class="edit">编辑</button></td>`;
+        roomsTbody.appendChild(tr);
+      }finally{ btn.disabled = false; btn.textContent = '添加' }
+    });
+
+    roomsTbody.addEventListener('click', async (e)=>{
+      const tr = e.target.closest('tr'); if(!tr) return; const id = tr.dataset.id;
+        if(e.target.classList.contains('edit')){
+        const newNo = prompt('教室号：', tr.children[0].textContent); if(newNo==null) return;
+        const newCap = prompt('容量：', tr.children[1].textContent); if(newCap==null) return;
+        if(id){ try{ await api.resources.classrooms.update(id, { room_number: newNo, capacity: parseInt(newCap,10) }); loadRooms(); }catch(err){ alert('更新教室失败：'+(err && err.message? err.message : err)) } }
+        else { tr.children[0].textContent=newNo; tr.children[1].textContent=newCap }
+      }else if(e.target.classList.contains('delete')){
+        if(!confirm('确认删除该教室？')) return;
+        if(id){ try{ await api.resources.classrooms.delete(id); loadRooms(); }catch(err){ alert('删除失败：'+(err && err.message? err.message : err)) } }
+        else tr.remove();
+      }
+    });
+
+    // 首次加载
+    loadRooms();
+  </script>
+</body>
+</html>

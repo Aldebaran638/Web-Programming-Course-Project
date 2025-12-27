@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>班级管理</title>
+  <link rel="stylesheet" href="../CSS/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <h1>教学管理端</h1>
+    <nav class="top-nav">
+      <a href="index.html">仪表盘</a>
+      <a href="classes.html">班级管理</a>
+      <a href="students.html">学生管理</a>
+      <a href="courses.html">课程管理</a>
+      <a href="teachers.html">教师管理</a>
+      <a href="courseplan.html">开课计划</a>
+      <a href="timetable.html">课程表</a>
+      <a href="grades.html">成绩审核</a>
+      <a href="classrooms.html">教室管理</a>
+    </nav>
+  </header>
+  <div class="admin-container">
+    <aside class="admin-sidebar">
+      <ul>
+        <li><a href="index.html">仪表盘</a></li>
+        <li><a href="classes.html">班级管理</a></li>
+        <li><a href="students.html">学生管理</a></li>
+        <li><a href="courses.html">课程管理</a></li>
+        <li><a href="teachers.html">教师管理</a></li>
+        <li><a href="courseplan.html">开课计划</a></li>
+        <li><a href="timetable.html">课程表</a></li>
+        <li><a href="grades.html">成绩审核</a></li>
+        <li><a href="classrooms.html">教室管理</a></li>
+      </ul>
+    </aside>
+    <main class="admin-main">
+      <h2>班级列表</h2>
+      <button id="newClassBtn">添加班级</button>
+      <form id="classForm" class="hidden">
+        <label>班级名称：<input type="text" id="className"></label>
+        <label>年级：<input type="text" id="grade"></label>
+        <button type="button" id="addClass">保存</button>
+      </form>
+
+      <table class="simple-table" id="classesTable">
+        <thead><tr><th>班级ID</th><th>名称</th><th>学生数</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>软件工程1901</td><td>45</td><td><button>编辑</button></td></tr>
+        </tbody>
+      </table>
+      <div id="classesPagination" class="pagination"></div>
+    </main>
+  </div>
+
+  <script src="api.js"></script>
+
+  <script>
+    // 使用 api.js 调用后端接口实现 CRUD
+    const tableBody = document.querySelector('#classesTable tbody');
+    let classesPage = 1, classesPageSize = 10, classesTotalPages = 1;
+    function renderPagination(container, page, totalPages){
+      const el = document.getElementById(container);
+      if(!el) return;
+      el.innerHTML = '';
+      const prev = document.createElement('button'); prev.textContent = '上一页'; prev.disabled = page<=1;
+      const next = document.createElement('button'); next.textContent = '下一页'; next.disabled = page>=totalPages;
+      prev.addEventListener('click', ()=>{ classesPage = Math.max(1, page-1); loadClasses(classesPage) });
+      next.addEventListener('click', ()=>{ classesPage = Math.min(totalPages, page+1); loadClasses(classesPage) });
+      const info = document.createElement('span'); info.textContent = ` 第 ${page} / ${totalPages} 页 `;
+      el.appendChild(prev); el.appendChild(info); el.appendChild(next);
+    }
+
+    async function loadClasses(page = 1){
+      try{
+        const data = await api.resources.classes.list(`page=${page}&pageSize=${classesPageSize}`);
+        let items = [];
+        if(data){
+          if(data.pagination){ classesTotalPages = data.pagination.totalPages || 1; classesPage = data.pagination.currentPage || page; }
+          items = data.items || data.classes || data.courses || (Array.isArray(data)? data : []);
+        }
+        tableBody.innerHTML = '';
+        items.forEach(c=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${c.id}</td><td>${c.class_name}</td><td>${c.student_count||0}</td><td>
+            <button class="edit">编辑</button>
+            <button class="delete">删除</button></td>`;
+          tr.dataset.id = c.id;
+          tableBody.appendChild(tr);
+        });
+        renderPagination('classesPagination', classesPage, classesTotalPages);
+      }catch(e){ alert('加载班级失败: '+e.message) }
+    }
+
+    document.getElementById('newClassBtn').addEventListener('click', ()=>{
+      document.getElementById('classForm').classList.toggle('hidden');
+    });
+
+    document.getElementById('addClass').addEventListener('click', async ()=>{
+      const btn = document.getElementById('addClass');
+      const name = document.getElementById('className').value || '新班级';
+      const grade = document.getElementById('grade').value || '';
+      try{
+        btn.disabled = true; btn.textContent = '保存中...';
+        const created = await api.resources.classes.create({ class_name: name, enrollment_year: grade });
+        alert('创建成功');
+        document.getElementById('classForm').classList.add('hidden');
+        loadClasses();
+      }catch(e){ alert('创建失败: '+(e && e.message? e.message : e)) }finally{ btn.disabled = false; btn.textContent = '保存' }
+    });
+
+    tableBody.addEventListener('click', async (e)=>{
+      const tr = e.target.closest('tr'); if(!tr) return;
+      const id = tr.dataset.id;
+        if(e.target.classList.contains('edit')){
+        const newName = prompt('新的班级名称：', tr.children[1].textContent);
+        if(!newName) return;
+        try{ const updated = await api.resources.classes.update(id, { class_name: newName }); alert('更新成功'); loadClasses(); }catch(err){ alert('更新失败: '+(err && err.message? err.message : err)) }
+      }else if(e.target.classList.contains('delete')){
+        if(!confirm('确认删除该班级？')) return;
+        try{ await api.resources.classes.delete(id); alert('删除成功'); loadClasses(); }catch(err){ alert('删除失败: '+(err && err.message? err.message : err)) }
+      }
+    });
+
+    // 首次加载
+    loadClasses();
+  </script>
+</body>
+</html>

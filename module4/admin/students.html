@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>学生管理</title>
+  <link rel="stylesheet" href="../CSS/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <h1>教学管理端</h1>
+    <nav class="top-nav">
+      <a href="index.html">仪表盘</a>
+      <a href="classes.html">班级管理</a>
+      <a href="students.html">学生管理</a>
+      <a href="courses.html">课程管理</a>
+      <a href="teachers.html">教师管理</a>
+      <a href="courseplan.html">开课计划</a>
+      <a href="timetable.html">课程表</a>
+      <a href="grades.html">成绩审核</a>
+      <a href="classrooms.html">教室管理</a>
+    </nav>
+  </header>
+  <div class="admin-container">
+    <aside class="admin-sidebar">
+      <ul>
+        <li><a href="index.html">仪表盘</a></li>
+        <li><a href="classes.html">班级管理</a></li>
+        <li><a href="students.html">学生管理</a></li>
+        <li><a href="courses.html">课程管理</a></li>
+        <li><a href="teachers.html">教师管理</a></li>
+        <li><a href="courseplan.html">开课计划</a></li>
+        <li><a href="timetable.html">课程表</a></li>
+        <li><a href="grades.html">成绩审核</a></li>
+        <li><a href="classrooms.html">教室管理</a></li>
+      </ul>
+    </aside>
+    <main class="admin-main">
+      <h2>学生列表</h2>
+      <div style="margin-bottom:12px">
+        <input type="file" id="csvfile" accept=".csv"> <button id="importBtn">导入 CSV</button>
+        <button id="newStudentBtn">添加学生</button>
+      </div>
+
+      <form id="studentForm" class="hidden">
+        <label>学号：<input id="stuNo"></label>
+        <label>姓名：<input id="stuName"></label>
+        <label>班级：<input id="stuClass"></label>
+        <label>邮箱：<input id="stuEmail"></label>
+        <button type="button" id="addStudent">保存</button>
+      </form>
+
+      <table class="simple-table" id="studentsTable">
+        <thead><tr><th>学号</th><th>姓名</th><th>班级</th><th>邮箱</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td>20200101</td><td>张三</td><td>软件1901</td><td>zhang3@example.com</td><td><button>编辑</button></td></tr>
+        </tbody>
+      </table>
+      <div id="studentsPagination" class="pagination"></div>
+    </main>
+  </div>
+
+  <script src="api.js"></script>
+  <script>
+    const tbody = document.querySelector('#studentsTable tbody');
+    let studentsPage = 1, studentsPageSize = 10, studentsTotalPages = 1;
+    function renderStudentsPagination(){
+      const el = document.getElementById('studentsPagination'); if(!el) return; el.innerHTML = '';
+      const prev = document.createElement('button'); prev.textContent = '上一页'; prev.disabled = studentsPage<=1;
+      const next = document.createElement('button'); next.textContent = '下一页'; next.disabled = studentsPage>=studentsTotalPages;
+      prev.addEventListener('click', ()=>{ studentsPage = Math.max(1, studentsPage-1); loadStudents(studentsPage) });
+      next.addEventListener('click', ()=>{ studentsPage = Math.min(studentsTotalPages, studentsPage+1); loadStudents(studentsPage) });
+      const info = document.createElement('span'); info.textContent = ` 第 ${studentsPage} / ${studentsTotalPages} 页 `;
+      el.appendChild(prev); el.appendChild(info); el.appendChild(next);
+    }
+
+    async function loadStudents(page = 1){
+      try{
+        const data = await api.resources.students.list(`page=${page}&pageSize=${studentsPageSize}`);
+        let items = [];
+        if(data){ if(data.pagination){ studentsTotalPages = data.pagination.totalPages||1; studentsPage = data.pagination.currentPage||page };
+          items = data.items || data.students || (Array.isArray(data)? data: []);
+        }
+        tbody.innerHTML = '';
+        items.forEach(s=>{
+          const tr = document.createElement('tr');
+          tr.dataset.id = s.id;
+          tr.innerHTML = `<td>${s.username||s.id||''}</td><td>${s.full_name||s.fullName||''}</td><td>${s.class_name||s.class_id||''}</td><td>${s.email||''}</td><td><button class="edit">编辑</button><button class="delete">删除</button></td>`;
+          tbody.appendChild(tr);
+        });
+        renderStudentsPagination();
+      }catch(e){ alert('加载学生失败:'+e.message) }
+    }
+
+    document.getElementById('newStudentBtn').addEventListener('click', ()=>document.getElementById('studentForm').classList.toggle('hidden'));
+    document.getElementById('addStudent').addEventListener('click', async ()=>{
+      const body = { username: document.getElementById('stuNo').value, full_name: document.getElementById('stuName').value, class_id: document.getElementById('stuClass').value, email: document.getElementById('stuEmail').value };
+      try{ const created = await api.resources.students.create(body); alert('添加成功'); document.getElementById('studentForm').classList.add('hidden'); loadStudents(); }catch(e){ alert('添加失败:'+ (e && e.message? e.message : e)) }
+    });
+
+    document.getElementById('importBtn').addEventListener('click', async ()=>{
+      const fileInput = document.getElementById('csvfile');
+      const f = fileInput.files[0];
+      if(!f){ alert('请选择 CSV 文件'); return }
+      const btn = document.getElementById('importBtn');
+      try{
+        btn.disabled = true; btn.textContent = '上传中...';
+        const res = await api.upload.batchCreateStudents(f);
+        if(res && res.summary){
+          alert(`上传完成：总 ${res.summary.total}，已创建 ${res.summary.created}，已存在 ${res.summary.existing}，失败 ${res.summary.failed}`);
+        }else{
+          alert('上传完成：' + (typeof res === 'object'? JSON.stringify(res): String(res)));
+        }
+        fileInput.value = '';
+        loadStudents();
+      }catch(e){
+        alert('上传失败：' + (e && e.message? e.message : e));
+        console.error('batch upload error', e);
+      }finally{ btn.disabled = false; btn.textContent = '导入 CSV' }
+    });
+
+    tbody.addEventListener('click', async (e)=>{
+      const tr = e.target.closest('tr'); if(!tr) return; const id = tr.dataset.id;
+      if(e.target.classList.contains('edit')){
+        const name = prompt('姓名：', tr.children[1].textContent); if(name==null) return;
+        try{ const updated = await api.resources.students.update(id, { full_name: name }); alert('更新成功'); loadStudents(); }catch(err){ alert('更新失败:'+ (err && err.message? err.message : err)) }
+      }else if(e.target.classList.contains('delete')){
+        if(!confirm('确认删除该学生？')) return;
+        try{ await api.resources.students.delete(id); alert('删除成功'); loadStudents(); }catch(err){ alert('删除失败:'+ (err && err.message? err.message : err)) }
+      }
+    });
+
+    loadStudents();
+  </script>
+</body>
+</html>

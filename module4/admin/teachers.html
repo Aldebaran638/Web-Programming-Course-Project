@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>教师管理</title>
+  <link rel="stylesheet" href="../CSS/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <h1>教学管理端</h1>
+    <nav class="top-nav">
+      <a href="index.html">仪表盘</a>
+      <a href="classes.html">班级管理</a>
+      <a href="students.html">学生管理</a>
+      <a href="courses.html">课程管理</a>
+      <a href="teachers.html">教师管理</a>
+      <a href="courseplan.html">开课计划</a>
+      <a href="timetable.html">课程表</a>
+      <a href="grades.html">成绩审核</a>
+      <a href="classrooms.html">教室管理</a>
+    </nav>
+  </header>
+  <div class="admin-container">
+    <aside class="admin-sidebar">
+      <ul>
+        <li><a href="index.html">仪表盘</a></li>
+        <li><a href="classes.html">班级管理</a></li>
+        <li><a href="students.html">学生管理</a></li>
+        <li><a href="courses.html">课程管理</a></li>
+        <li><a href="teachers.html">教师管理</a></li>
+        <li><a href="courseplan.html">开课计划</a></li>
+        <li><a href="timetable.html">课程表</a></li>
+        <li><a href="grades.html">成绩审核</a></li>
+        <li><a href="classrooms.html">教室管理</a></li>
+      </ul>
+    </aside>
+    <main class="admin-main">
+      <h2>教师列表</h2>
+      <button id="newTeacherBtn">添加教师</button>
+      <form id="teacherForm" class="hidden">
+        <label>工号：<input id="teacherNo"></label>
+        <label>姓名：<input id="teacherName"></label>
+        <label>职称：<input id="teacherTitle"></label>
+        <label>邮箱：<input id="teacherEmail"></label>
+        <button type="button" id="addTeacher">保存</button>
+      </form>
+
+      <table class="simple-table" id="teachersTable">
+        <thead><tr><th>工号</th><th>姓名</th><th>职称</th><th>邮箱</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td>T1001</td><td>王老师</td><td>副教授</td><td>wang@example.com</td><td><button>编辑</button></td></tr>
+        </tbody>
+      </table>
+      <div id="teachersPagination" class="pagination"></div>
+    </main>
+  </div>
+  <script src="api.js"></script>
+  <script>
+    const tBody = document.querySelector('#teachersTable tbody');
+    let teachersPage = 1, teachersPageSize = 10, teachersTotalPages = 1;
+    function renderTeachersPagination(){
+      const el = document.getElementById('teachersPagination'); if(!el) return; el.innerHTML = '';
+      const prev = document.createElement('button'); prev.textContent = '上一页'; prev.disabled = teachersPage<=1;
+      const next = document.createElement('button'); next.textContent = '下一页'; next.disabled = teachersPage>=teachersTotalPages;
+      prev.addEventListener('click', ()=>{ teachersPage = Math.max(1, teachersPage-1); loadTeachers(teachersPage) });
+      next.addEventListener('click', ()=>{ teachersPage = Math.min(teachersTotalPages, teachersPage+1); loadTeachers(teachersPage) });
+      const info = document.createElement('span'); info.textContent = ` 第 ${teachersPage} / ${teachersTotalPages} 页 `;
+      el.appendChild(prev); el.appendChild(info); el.appendChild(next);
+    }
+
+    async function loadTeachers(page = 1){
+      try{
+        const data = await api.resources.teachers.list(`page=${page}&pageSize=${teachersPageSize}`);
+        let items = [];
+        if(data){ if(data.pagination){ teachersTotalPages = data.pagination.totalPages||1; teachersPage = data.pagination.currentPage||page };
+          items = data.items || data.teachers || (Array.isArray(data)? data: []);
+        }
+        tBody.innerHTML = '';
+        items.forEach(t=>{
+          const tr = document.createElement('tr'); tr.dataset.id = t.id;
+          tr.innerHTML = `<td>${t.id||t.teacher_id_number||''}</td><td>${t.full_name||''}</td><td>${t.title||''}</td><td>${t.email||''}</td><td><button class="edit">编辑</button><button class="delete">删除</button></td>`;
+          tBody.appendChild(tr);
+        });
+        renderTeachersPagination();
+      }catch(e){ alert('加载教师失败:'+e.message) }
+    }
+
+    document.getElementById('newTeacherBtn').addEventListener('click', ()=>document.getElementById('teacherForm').classList.toggle('hidden'));
+    document.getElementById('addTeacher').addEventListener('click', async ()=>{
+      const btn = document.getElementById('addTeacher');
+      const body = { username: document.getElementById('teacherNo').value, full_name: document.getElementById('teacherName').value, title: document.getElementById('teacherTitle').value, email: document.getElementById('teacherEmail').value };
+      try{ btn.disabled = true; btn.textContent = '保存中...'; const created = await api.resources.teachers.create(body); alert('添加成功'); document.getElementById('teacherForm').classList.add('hidden'); loadTeachers(); }catch(e){ alert('失败:'+ (e && e.message? e.message : e)) }finally{ btn.disabled = false; btn.textContent = '保存' }
+    });
+
+    tBody.addEventListener('click', async (e)=>{
+      const tr = e.target.closest('tr'); if(!tr) return; const id = tr.dataset.id;
+      if(e.target.classList.contains('edit')){
+        const name = prompt('姓名：', tr.children[1].textContent); if(name==null) return;
+        try{ const updated = await api.resources.teachers.update(id, { full_name: name }); alert('更新成功'); loadTeachers(); }catch(err){ alert('更新失败:'+ (err && err.message? err.message : err)) }
+      }else if(e.target.classList.contains('delete')){
+        if(!confirm('确认删除该教师？')) return;
+        try{ await api.resources.teachers.delete(id); alert('删除成功'); loadTeachers(); }catch(err){ alert('删除失败:'+ (err && err.message? err.message : err)) }
+      }
+    });
+
+    loadTeachers();
+  </script>
+</body>
+</html>

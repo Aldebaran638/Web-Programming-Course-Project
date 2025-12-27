@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>课程表</title>
+  <link rel="stylesheet" href="../CSS/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <h1>教学管理端</h1>
+    <nav class="top-nav">
+      <a href="index.html">仪表盘</a>
+      <a href="classes.html">班级管理</a>
+      <a href="students.html">学生管理</a>
+      <a href="courses.html">课程管理</a>
+      <a href="teachers.html">教师管理</a>
+      <a href="courseplan.html">开课计划</a>
+      <a href="timetable.html">课程表</a>
+      <a href="grades.html">成绩审核</a>
+      <a href="classrooms.html">教室管理</a>
+    </nav>
+  </header>
+  <div class="admin-container">
+    <aside class="admin-sidebar">
+      <ul>
+        <li><a href="index.html">仪表盘</a></li>
+        <li><a href="classes.html">班级管理</a></li>
+        <li><a href="students.html">学生管理</a></li>
+        <li><a href="courses.html">课程管理</a></li>
+        <li><a href="teachers.html">教师管理</a></li>
+        <li><a href="courseplan.html">开课计划</a></li>
+        <li><a href="timetable.html">课程表</a></li>
+        <li><a href="grades.html">成绩审核</a></li>
+        <li><a href="classrooms.html">教室管理</a></li>
+      </ul>
+    </aside>
+    <main class="admin-main">
+      <h2>按班级查看课程表</h2>
+      <label>班级：<input id="viewClass" value="软件1901"></label>
+      <button id="viewBtn">查看</button>
+
+      <div class="timetable-wrap">
+        <table class="timetable">
+          <thead><tr><th>时间/星期</th><th>周一</th><th>周二</th><th>周三</th><th>周四</th><th>周五</th></tr></thead>
+          <tbody>
+            <tr><td>08:00-10:00</td><td>CS101<br>王老师<br>A101</td><td></td><td></td><td></td><td></td></tr>
+            <tr><td>10:10-12:00</td><td></td><td>CS102<br>李老师<br>B201</td><td></td><td></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+  <script>
+    document.getElementById('viewBtn').addEventListener('click', ()=>{
+      const cls = document.getElementById('viewClass').value||'--';
+      alert('显示课程表：' + cls + '（示例静态页面）');
+    });
+  </script>
+</body>
+</html>

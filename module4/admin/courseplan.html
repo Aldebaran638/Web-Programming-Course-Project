@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>开课计划</title>
+  <link rel="stylesheet" href="../CSS/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <h1>教学管理端</h1>
+    <nav class="top-nav">
+      <a href="index.html">仪表盘</a>
+      <a href="classes.html">班级管理</a>
+      <a href="students.html">学生管理</a>
+      <a href="courses.html">课程管理</a>
+      <a href="teachers.html">教师管理</a>
+      <a href="courseplan.html">开课计划</a>
+      <a href="timetable.html">课程表</a>
+      <a href="grades.html">成绩审核</a>
+      <a href="classrooms.html">教室管理</a>
+    </nav>
+  </header>
+  <div class="admin-container">
+    <aside class="admin-sidebar">
+      <ul>
+        <li><a href="index.html">仪表盘</a></li>
+        <li><a href="classes.html">班级管理</a></li>
+        <li><a href="students.html">学生管理</a></li>
+        <li><a href="courses.html">课程管理</a></li>
+        <li><a href="teachers.html">教师管理</a></li>
+        <li><a href="courseplan.html">开课计划</a></li>
+        <li><a href="timetable.html">课程表</a></li>
+        <li><a href="grades.html">成绩审核</a></li>
+        <li><a href="classrooms.html">教室管理</a></li>
+      </ul>
+    </aside>
+    <main class="admin-main">
+      <h2>创建开课计划</h2>
+      <form id="planForm">
+        <label>课程号：<input id="planCourse"></label>
+        <label>课程名：<input id="planCourseName"></label>
+        <label>教师：<input id="planTeacher"></label>
+        <label>教室：<input id="planRoom"></label>
+        <label>时间：<input id="planTime"></label>
+        <button type="button" id="addPlan">添加</button>
+      </form>
+
+      <h3>本学期开课（示例）</h3>
+      <table class="simple-table" id="planTable">
+        <thead><tr><th>课程号</th><th>课程名</th><th>教师</th><th>教室</th><th>时间</th></tr></thead>
+        <tbody>
+          <tr><td>CS101</td><td>计算机导论</td><td>王老师</td><td>A101</td><td>周一 08:00-10:00</td></tr>
+        </tbody>
+      </table>
+    </main>
+  </div>
+  <script src="api.js"></script>
+  <script>
+    async function addPlan(){
+      const btn = document.getElementById('addPlan');
+      const courseCode = document.getElementById('planCourse').value||'--';
+      const courseName = document.getElementById('planCourseName').value||'--';
+      const teacher = document.getElementById('planTeacher').value||'--';
+      const room = document.getElementById('planRoom').value||'--';
+      const time = document.getElementById('planTime').value||'--';
+      // 先尝试创建授课任务（teacher_id 与 course_id 假定为输入内容）
+      try{
+        btn.disabled = true; btn.textContent = '提交中...';
+        const ta = await api.resources.teachingAssignments.create({ teacher_id: teacher, course_id: courseCode, semester: (new Date()).getFullYear() + '-' + ((new Date()).getFullYear()+1) + '-1' });
+        // 如果后端返回 id，则尝试创建排课
+        const teachingId = (ta && (ta.id||ta.teaching_id)) || null;
+        if(teachingId){
+          await api.resources.courseSchedules.create({ teaching_id: teachingId, classroom_id: room, day_of_week: 'Mon', start_time: time, end_time: time });
+        }
+        // 在页面显示新计划
+        const tr = document.createElement('tr'); tr.innerHTML = `<td>${courseCode}</td><td>${courseName}</td><td>${teacher}</td><td>${room}</td><td>${time}</td>`;
+        document.querySelector('#planTable tbody').appendChild(tr);
+        alert('开课计划已提交（若后端支持）。');
+      }catch(err){
+        alert('提交开课计划失败：'+(err && err.message? err.message : err)+' （已在页面显示为本地条目）');
+        const tr = document.createElement('tr'); tr.innerHTML = `<td>${courseCode}</td><td>${courseName}</td><td>${teacher}</td><td>${room}</td><td>${time}</td>`;
+        document.querySelector('#planTable tbody').appendChild(tr);
+      }finally{ btn.disabled = false; btn.textContent = '添加' }
+    }
+    document.getElementById('addPlan').addEventListener('click', addPlan);
+  </script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>成绩审核与发布</title>
+  <link rel="stylesheet" href="../CSS/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <h1>教学管理端</h1>
+    <nav class="top-nav">
+      <a href="index.html">仪表盘</a>
+      <a href="classes.html">班级管理</a>
+      <a href="students.html">学生管理</a>
+      <a href="courses.html">课程管理</a>
+      <a href="teachers.html">教师管理</a>
+      <a href="courseplan.html">开课计划</a>
+      <a href="timetable.html">课程表</a>
+      <a href="grades.html">成绩审核</a>
+      <a href="classrooms.html">教室管理</a>
+    </nav>
+  </header>
+  <div class="admin-container">
+    <aside class="admin-sidebar">
+      <ul>
+        <li><a href="index.html">仪表盘</a></li>
+        <li><a href="classes.html">班级管理</a></li>
+        <li><a href="students.html">学生管理</a></li>
+        <li><a href="courses.html">课程管理</a></li>
+        <li><a href="teachers.html">教师管理</a></li>
+        <li><a href="courseplan.html">开课计划</a></li>
+        <li><a href="timetable.html">课程表</a></li>
+        <li><a href="grades.html">成绩审核</a></li>
+        <li><a href="classrooms.html">教室管理</a></li>
+      </ul>
+    </aside>
+    <main class="admin-main">
+      <h2>待审核成绩（示例）</h2>
+      <table class="simple-table" id="gradesTable">
+        <thead><tr><th>课程</th><th>学生数</th><th>平均分</th><th>异常</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>CS101</td>
+            <td>40</td>
+            <td>78.5</td>
+            <td class="flag-cell">--</td>
+            <td>
+              <button class="mark">标记异常</button>
+              <button class="publish">发布成绩</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </main>
+  </div>
+
+  <script src="api.js"></script>
+  <script>
+    const gradesTableBody = document.querySelector('#gradesTable tbody');
+    async function loadPending(){
+      try{
+        const data = await api.resources.grades.pendingReview();
+        const items = Array.isArray(data)? data : (data.items || data.courses || []);
+        gradesTableBody.innerHTML = '';
+        items.forEach(it=>{
+          const tr = document.createElement('tr');
+          const courseName = it.course_name || it.course || '';
+          const studentCount = it.student_count || (it.summary && it.summary.count) || '';
+          const avg = it.avg_score || (it.summary && it.summary.avg) || '';
+          const warnings = (it.warnings && it.warnings.length)? it.warnings.map(w=>w.message).join('; ') : '--';
+          tr.dataset.courseId = it.course_id || it.id || '';
+          tr.innerHTML = `<td>${courseName}</td><td>${studentCount}</td><td>${avg}</td><td class="flag-cell">${warnings}</td><td><button class="mark">标记异常</button> <button class="publish">发布成绩</button></td>`;
+          gradesTableBody.appendChild(tr);
+        });
+      }catch(e){
+        console.warn('加载待审核成绩失败：', e.message);
+      }
+    }
+
+    gradesTableBody.addEventListener('click', async (e)=>{
+      const tr = e.target.closest('tr'); if(!tr) return;
+        if(e.target.classList.contains('mark')){
+        tr.querySelector('.flag-cell').textContent = '异常';
+      }else if(e.target.classList.contains('publish')){
+        const courseId = tr.dataset.courseId; if(!courseId){ alert('缺少 courseId，无法发布'); return }
+        if(!confirm('确认发布该课程成绩？')) return;
+        try{
+          await api.resources.grades.publish({ course_ids: [ parseInt(courseId,10) || courseId ] });
+          alert('发布成功'); loadPending();
+        }catch(err){ alert('发布失败：'+(err && err.message? err.message : err)) }
+      }
+    });
+
+    loadPending();
+  </script>
+</body>
+</html>

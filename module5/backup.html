@@ -1,605 +1,70 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>备份与恢复 - 系统管理中心</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>数据备份与恢复</title>
+  <link rel="stylesheet" href="css/admin.css">
+  <style>
+    .restore-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 400px;
+    }
+    .restore-form .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .restore-form label {
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    .restore-form input {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+  </style>
 </head>
 <body>
-    <div class="sys-admin-container">
-        <!-- 侧边栏导航 -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">
-                    <i class="fas fa-cogs"></i>
-                    <h2>系统管理中心</h2>
-                </div>
-                <div class="user-info">
-                    <div class="avatar">
-                        <i class="fas fa-user-shield"></i>
-                    </div>
-                    <div class="user-details">
-                        <span class="username" id="username">系统管理员</span>
-                        <span class="role">系统管理员</span>
-                    </div>
-                </div>
-            </div>
-            
-            <nav class="sidebar-menu">
-                <div class="menu-section">
-                    <h3 class="section-title">系统管理</h3>
-                    <ul>
-                        <li>
-                            <a href="index.html">
-                                <i class="fas fa-tachometer-alt"></i>
-                                <span>控制面板</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="logs.html">
-                                <i class="fas fa-clipboard-list"></i>
-                                <span>日志审计</span>
-                            </a>
-                        </li>
-                        <li class="active">
-                            <a href="backup.html">
-                                <i class="fas fa-database"></i>
-                                <span>备份与恢复</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="menu-section">
-                    <h3 class="section-title">备份操作</h3>
-                    <ul>
-                        <li>
-                            <a href="#" onclick="createBackup()">
-                                <i class="fas fa-save"></i>
-                                <span>立即备份</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#backup-list">
-                                <i class="fas fa-history"></i>
-                                <span>备份历史</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#restore-section">
-                                <i class="fas fa-undo"></i>
-                                <span>恢复数据</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#storage">
-                                <i class="fas fa-hdd"></i>
-                                <span>存储管理</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="menu-section">
-                    <h3 class="section-title">其他</h3>
-                    <ul>
-                        <li>
-                            <a href="../index.html" target="_blank">
-                                <i class="fas fa-home"></i>
-                                <span>返回首页</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#" id="logout-btn">
-                                <i class="fas fa-sign-out-alt"></i>
-                                <span>退出登录</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <div class="system-status">
-                    <div class="status-item">
-                        <span class="status-label">备份状态</span>
-                        <span class="status-indicator online" id="backup-status-indicator"></span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">存储使用</span>
-                        <span class="status-value" id="storage-usage">0%</span>
-                    </div>
-                </div>
-            </div>
-        </aside>
-        
-        <!-- 主内容区 -->
-        <main class="main-content">
-            <header class="top-header">
-                <div class="header-left">
-                    <h1>备份与恢复</h1>
-                    <p class="subtitle">管理数据备份，恢复误删数据，保障数据安全</p>
-                </div>
-                <div class="header-right">
-                    <div class="header-actions">
-                        <button class="btn btn-primary" onclick="createBackup()">
-                            <i class="fas fa-save"></i> 立即备份
-                        </button>
-                        <button class="btn btn-secondary" onclick="showBackupSettings()">
-                            <i class="fas fa-cog"></i> 备份设置
-                        </button>
-                    </div>
-                </div>
-            </header>
-            
-            <div class="content-wrapper">
-                <!-- 备份操作区域 -->
-                <section class="backup-section">
-                    <div class="section-header">
-                        <h3 class="section-title">
-                            <i class="fas fa-database"></i> 数据备份
-                        </h3>
-                        <div class="backup-actions">
-                            <div class="backup-timer" id="backup-timer">
-                                <i class="fas fa-clock"></i> 下次自动备份: <span id="next-backup">24:00</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="backup-cards">
-                        <div class="backup-card">
-                            <div class="backup-icon full">
-                                <i class="fas fa-server"></i>
-                            </div>
-                            <div class="backup-content">
-                                <h4>完整系统备份</h4>
-                                <p>备份整个系统数据，包括用户、课程、成绩等所有信息。</p>
-                                <div class="backup-stats">
-                                    <div class="stat">
-                                        <span class="stat-label">大小</span>
-                                        <span class="stat-value">~ 350MB</span>
-                                    </div>
-                                    <div class="stat">
-                                        <span class="stat-label">耗时</span>
-                                        <span class="stat-value">~ 2分钟</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="backup-action">
-                                <button class="btn btn-primary" onclick="createFullBackup()">
-                                    <i class="fas fa-save"></i> 创建完整备份
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="backup-card">
-                            <div class="backup-icon incremental">
-                                <i class="fas fa-sync-alt"></i>
-                            </div>
-                            <div class="backup-content">
-                                <h4>增量备份</h4>
-                                <p>仅备份自上次备份以来发生变化的数据，节省存储空间。</p>
-                                <div class="backup-stats">
-                                    <div class="stat">
-                                        <span class="stat-label">大小</span>
-                                        <span class="stat-value">~ 15MB</span>
-                                    </div>
-                                    <div class="stat">
-                                        <span class="stat-label">耗时</span>
-                                        <span class="stat-value">~ 30秒</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="backup-action">
-                                <button class="btn btn-secondary" onclick="createIncrementalBackup()">
-                                    <i class="fas fa-sync-alt"></i> 创建增量备份
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="backup-status-container" id="backup-progress-container" style="display: none;">
-                        <h4>备份进度</h4>
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="backup-progress-fill" style="width: 0%"></div>
-                        </div>
-                        <div class="progress-info">
-                            <span id="backup-status-text">正在准备备份...</span>
-                            <span id="backup-progress-text">0%</span>
-                        </div>
-                    </div>
-                </section>
-                
-                <!-- 恢复数据区域 -->
-                <section class="restore-section" id="restore-section">
-                    <h3 class="section-title">
-                        <i class="fas fa-undo"></i> 数据恢复
-                    </h3>
-                    
-                    <div class="restore-warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <p><strong>警告：</strong>数据恢复操作将覆盖现有数据，可能导致数据丢失。请谨慎操作！</p>
-                    </div>
-                    
-                    <div class="restore-form">
-                        <div class="form-group">
-                            <label for="restore-type"><i class="fas fa-cubes"></i> 恢复类型</label>
-                            <select id="restore-type" onchange="toggleRestoreOptions()">
-                                <option value="backup">从备份恢复</option>
-                                <option value="resource">恢复单个资源</option>
-                                <option value="point">时间点恢复</option>
-                            </select>
-                        </div>
-                        
-                        <div class="restore-options" id="restore-options">
-                            <!-- 选项会根据选择动态变化 -->
-                            <div class="form-group" id="backup-select-group">
-                                <label for="backup-select"><i class="fas fa-archive"></i> 选择备份</label>
-                                <select id="backup-select">
-                                    <option value="">请选择备份文件</option>
-                                    <!-- 备份列表将通过JavaScript填充 -->
-                                </select>
-                            </div>
-                            
-                            <div class="form-group" id="resource-type-group" style="display: none;">
-                                <label for="resource-type"><i class="fas fa-file-alt"></i> 资源类型</label>
-                                <select id="resource-type">
-                                    <option value="courses">课程</option>
-                                    <option value="users">用户</option>
-                                    <option value="classes">班级</option>
-                                    <option value="teachers">教师</option>
-                                    <option value="students">学生</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group" id="resource-id-group" style="display: none;">
-                                <label for="resource-id"><i class="fas fa-hashtag"></i> 资源ID</label>
-                                <input type="number" id="resource-id" placeholder="输入要恢复的资源ID...">
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="restore-confirm"><i class="fas fa-check-double"></i> 确认操作</label>
-                            <div class="confirmation-box">
-                                <input type="checkbox" id="restore-confirm">
-                                <label for="restore-confirm">我已确认此操作的风险，并已备份当前数据</label>
-                            </div>
-                        </div>
-                        
-                        <div class="form-actions">
-                            <button class="btn btn-danger" onclick="executeRestore()" id="restore-button" disabled>
-                                <i class="fas fa-undo"></i> 执行恢复
-                            </button>
-                            <button class="btn btn-outline" onclick="resetRestoreForm()">
-                                <i class="fas fa-redo"></i> 重置
-                            </button>
-                        </div>
-                    </div>
-                </section>
-                
-                <!-- 备份历史区域 -->
-                <section class="history-section" id="backup-list">
-                    <div class="section-header">
-                        <h3 class="section-title">
-                            <i class="fas fa-history"></i> 备份历史
-                        </h3>
-                        <div class="section-actions">
-                            <button class="btn btn-outline" onclick="refreshBackupList()">
-                                <i class="fas fa-sync-alt"></i> 刷新
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="history-table-container">
-                        <table class="history-table" id="backupHistoryTable">
-                            <thead>
-                                <tr>
-                                    <th width="80px">ID</th>
-                                    <th width="150px">备份时间</th>
-                                    <th width="120px">备份类型</th>
-                                    <th width="100px">大小</th>
-                                    <th>备注</th>
-                                    <th width="120px">状态</th>
-                                    <th width="150px">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="backupHistoryBody">
-                                <!-- 备份历史数据将通过JavaScript填充 -->
-                                <tr class="loading-row">
-                                    <td colspan="7">
-                                        <div class="loading-spinner">
-                                            <i class="fas fa-spinner fa-spin"></i> 正在加载备份历史...
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="history-stats">
-                        <div class="stat-item">
-                            <span class="stat-label">备份总数</span>
-                            <span class="stat-value" id="total-backups">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">总大小</span>
-                            <span class="stat-value" id="total-backup-size">0 MB</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">最近备份</span>
-                            <span class="stat-value" id="latest-backup">无</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">成功率</span>
-                            <span class="stat-value" id="backup-success-rate">100%</span>
-                        </div>
-                    </div>
-                </section>
-                
-                <!-- 存储管理区域 -->
-                <section class="storage-section" id="storage">
-                    <h3 class="section-title">
-                        <i class="fas fa-hdd"></i> 存储管理
-                    </h3>
-                    
-                    <div class="storage-info">
-                        <div class="storage-card">
-                            <div class="storage-icon">
-                                <i class="fas fa-database"></i>
-                            </div>
-                            <div class="storage-content">
-                                <h4>备份存储</h4>
-                                <div class="storage-progress">
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" id="storage-progress-fill" style="width: 45%"></div>
-                                    </div>
-                                    <div class="progress-info">
-                                        <span>已使用: <strong id="storage-used">1.2 GB</strong></span>
-                                        <span>剩余: <strong id="storage-free">1.8 GB</strong></span>
-                                        <span>总计: <strong>3.0 GB</strong></span>
-                                    </div>
-                                </div>
-                                <div class="storage-actions">
-                                    <button class="btn btn-outline" onclick="cleanupOldBackups()">
-                                        <i class="fas fa-broom"></i> 清理旧备份
-                                    </button>
-                                    <button class="btn btn-outline" onclick="exportStorageReport()">
-                                        <i class="fas fa-file-export"></i> 导出报告
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="storage-settings">
-                            <h4>自动备份设置</h4>
-                            <div class="settings-group">
-                                <div class="setting-item">
-                                    <label>
-                                        <input type="checkbox" id="auto-backup" checked>
-                                        启用自动备份
-                                    </label>
-                                </div>
-                                <div class="setting-item">
-                                    <label for="backup-frequency">备份频率</label>
-                                    <select id="backup-frequency">
-                                        <option value="daily">每天</option>
-                                        <option value="weekly" selected>每周</option>
-                                        <option value="monthly">每月</option>
-                                    </select>
-                                </div>
-                                <div class="setting-item">
-                                    <label for="backup-time">备份时间</label>
-                                    <input type="time" id="backup-time" value="02:00">
-                                </div>
-                                <div class="setting-item">
-                                    <label for="retention-days">保留天数</label>
-                                    <input type="number" id="retention-days" value="30" min="1" max="365">
-                                </div>
-                            </div>
-                            <button class="btn btn-primary" onclick="saveBackupSettings()">
-                                <i class="fas fa-save"></i> 保存设置
-                            </button>
-                        </div>
-                    </div>
-                </section>
-            </div>
-            
-            <footer class="main-footer">
-                <p>© 2025 成绩管理教学平台 - 数据备份系统 | 最后更新: <span id="last-update">今天 10:30</span></p>
-                <p class="footer-links">
-                    <a href="index.html">返回控制面板</a> | 
-                    <a href="#" onclick="createBackup()">立即备份</a> | 
-                    <a href="#" onclick="showBackupSettings()">备份设置</a>
-                </p>
-            </footer>
-        </main>
-    </div>
-    
-    <!-- 备份设置弹窗 -->
-    <div class="modal" id="backupSettingsModal">
-        <div class="modal-content large">
-            <div class="modal-header">
-                <h3><i class="fas fa-cog"></i> 备份设置</h3>
-                <button class="close-modal" onclick="closeModal('backupSettingsModal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="settings-tabs">
-                    <div class="tab-buttons">
-                        <button class="tab-btn active" data-tab="general">常规设置</button>
-                        <button class="tab-btn" data-tab="storage">存储设置</button>
-                        <button class="tab-btn" data-tab="notification">通知设置</button>
-                        <button class="tab-btn" data-tab="advanced">高级设置</button>
-                    </div>
-                    
-                    <div class="tab-content active" id="general-tab">
-                        <div class="setting-group">
-                            <h4><i class="fas fa-clock"></i> 备份计划</h4>
-                            <div class="setting-item">
-                                <label>
-                                    <input type="checkbox" id="enable-auto-backup" checked>
-                                    启用自动备份
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <label for="backup-schedule">备份周期</label>
-                                <select id="backup-schedule">
-                                    <option value="daily">每日</option>
-                                    <option value="weekly" selected>每周</option>
-                                    <option value="monthly">每月</option>
-                                </select>
-                            </div>
-                            <div class="setting-item">
-                                <label for="backup-day">备份日（仅限每周）</label>
-                                <select id="backup-day">
-                                    <option value="0">星期日</option>
-                                    <option value="1">星期一</option>
-                                    <option value="2">星期二</option>
-                                    <option value="3">星期三</option>
-                                    <option value="4">星期四</option>
-                                    <option value="5" selected>星期五</option>
-                                    <option value="6">星期六</option>
-                                </select>
-                            </div>
-                            <div class="setting-item">
-                                <label for="backup-hour">备份时间</label>
-                                <input type="time" id="backup-hour" value="02:00">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="tab-content" id="storage-tab">
-                        <div class="setting-group">
-                            <h4><i class="fas fa-hdd"></i> 存储设置</h4>
-                            <div class="setting-item">
-                                <label for="max-backup-size">最大备份存储空间 (GB)</label>
-                                <input type="number" id="max-backup-size" value="5" min="1" max="100">
-                            </div>
-                            <div class="setting-item">
-                                <label for="retention-policy">保留策略</label>
-                                <select id="retention-policy">
-                                    <option value="days">按天数保留</option>
-                                    <option value="count" selected>按数量保留</option>
-                                    <option value="both">两者结合</option>
-                                </select>
-                            </div>
-                            <div class="setting-item">
-                                <label for="max-backup-count">最大备份数量</label>
-                                <input type="number" id="max-backup-count" value="30" min="1" max="365">
-                            </div>
-                            <div class="setting-item">
-                                <label for="backup-path">备份路径</label>
-                                <input type="text" id="backup-path" value="/var/backups/grade-system" readonly>
-                                <button class="btn-icon" onclick="changeBackupPath()">
-                                    <i class="fas fa-folder-open"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="tab-content" id="notification-tab">
-                        <div class="setting-group">
-                            <h4><i class="fas fa-bell"></i> 通知设置</h4>
-                            <div class="setting-item">
-                                <label>
-                                    <input type="checkbox" id="notify-success" checked>
-                                    备份成功时通知
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <label>
-                                    <input type="checkbox" id="notify-failure" checked>
-                                    备份失败时通知
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <label>
-                                    <input type="checkbox" id="notify-low-space" checked>
-                                    存储空间不足时通知
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <label for="notification-email">通知邮箱</label>
-                                <input type="email" id="notification-email" placeholder="admin@example.com">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="tab-content" id="advanced-tab">
-                        <div class="setting-group">
-                            <h4><i class="fas fa-sliders-h"></i> 高级设置</h4>
-                            <div class="setting-item">
-                                <label>
-                                    <input type="checkbox" id="compress-backup" checked>
-                                    压缩备份文件
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <label>
-                                    <input type="checkbox" id="encrypt-backup">
-                                    加密备份文件
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <label for="compression-level">压缩级别</label>
-                                <select id="compression-level">
-                                    <option value="low">低（快速）</option>
-                                    <option value="medium" selected>中（平衡）</option>
-                                    <option value="high">高（最佳压缩）</option>
-                                </select>
-                            </div>
-                            <div class="setting-item">
-                                <label for="backup-threads">备份线程数</label>
-                                <input type="number" id="backup-threads" value="2" min="1" max="8">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline" onclick="closeModal('backupSettingsModal')">取消</button>
-                <button class="btn btn-primary" onclick="saveAllBackupSettings()">
-                    <i class="fas fa-save"></i> 保存所有设置
-                </button>
-            </div>
+  <header class="admin-header">
+    <h1>数据备份与恢复</h1>
+    <nav>
+      <a href="index.html">管理首页</a>
+      <a href="logs.html">操作日志查询</a>
+    </nav>
+  </header>
+  <main class="container">
+    <section class="panel">
+      <h2>触发全系统数据备份</h2>
+      <p>点击下方按钮将触发一次全系统的数据备份（后台异步执行）。</p>
+      <div class="actions">
+        <button id="btn-backup">触发全库备份</button>
+      </div>
+      <div id="backup-result" style="margin-top: 12px;"></div>
+    </section>
+
+    <section class="panel">
+      <h2>恢复软删除记录</h2>
+      <p>恢复被软删除的系统记录（请谨慎操作）。</p>
+      <div class="restore-form">
+        <div class="form-group">
+          <label for="resource-type">资源类型:</label>
+          <input type="text" id="resource-type" placeholder="如: courses, users, classes" />
+          <small>支持的资源类型: courses, users, classes, teachers, students 等</small>
         </div>
-    </div>
-    
-    <!-- 确认恢复弹窗 -->
-    <div class="modal" id="confirmRestoreModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-exclamation-triangle"></i> 确认恢复操作</h3>
-                <button class="close-modal" onclick="closeModal('confirmRestoreModal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="warning-message">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <h4>确认执行数据恢复</h4>
-                    <p>您即将执行数据恢复操作，这将覆盖现有数据。</p>
-                    <div class="restore-details">
-                        <p><strong>恢复类型：</strong><span id="restore-type-detail">完整备份恢复</span></p>
-                        <p><strong>目标数据：</strong><span id="restore-target-detail">系统所有数据</span></p>
-                        <p><strong>预计耗时：</strong><span id="restore-time-detail">约2-5分钟</span></p>
-                    </div>
-                    <p class="warning-text">此操作不可逆！请确保您已了解其风险。</p>
-                </div>
-                <div class="confirmation-input">
-                    <label for="restore-confirm-text">请输入 "CONFIRM RESTORE" 以确认：</label>
-                    <input type="text" id="restore-confirm-text" placeholder="CONFIRM RESTORE">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline" onclick="closeModal('confirmRestoreModal')">取消</button>
-                <button class="btn btn-danger" onclick="executeConfirmedRestore()" disabled id="confirm-restore-btn">
-                    <i class="fas fa-undo"></i> 确认恢复
-                </button>
-            </div>
+        <div class="form-group">
+          <label for="resource-id">记录ID:</label>
+          <input type="number" id="resource-id" placeholder="要恢复的记录ID" />
         </div>
-    </div>
-    
-    <script src="backup-script.js"></script>
+        <div class="actions">
+          <button id="btn-restore">开始恢复</button>
+        </div>
+      </div>
+      <div id="restore-result" style="margin-top: 12px;"></div>
+    </section>
+  </main>
+  <script src="js/admin.js"></script>
 </body>
 </html>

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>排课管理</title>
+  <link rel="stylesheet" href="../CSS/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <h1>教学管理端</h1>
+    <nav class="top-nav">
+      <a href="index.html">仪表盘</a>
+      <a href="classes.html">班级管理</a>
+      <a href="students.html">学生管理</a>
+      <a href="courses.html">课程管理</a>
+      <a href="teachers.html">教师管理</a>
+      <a href="courseplan.html">开课计划</a>
+      <a href="timetable.html">课程表</a>
+      <a href="grades.html">成绩审核</a>
+      <a href="classrooms.html">教室管理</a>
+    </nav>
+  </header>
+  <div class="admin-container">
+    <aside class="admin-sidebar">
+      <ul>
+        <li><a href="index.html">仪表盘</a></li>
+        <li><a href="classes.html">班级管理</a></li>
+        <li><a href="students.html">学生管理</a></li>
+        <li><a href="courses.html">课程管理</a></li>
+        <li><a href="teachers.html">教师管理</a></li>
+        <li><a href="courseplan.html">开课计划</a></li>
+        <li><a href="timetable.html">课程表</a></li>
+        <li><a href="grades.html">成绩审核</a></li>
+        <li><a href="classrooms.html">教室管理</a></li>
+      </ul>
+    </aside>
+    <main class="admin-main">
+      <h2>创建课程安排</h2>
+      <form id="scheduleForm">
+        <label>课程号：<input id="courseNo"/></label>
+        <label>教师（ID）：<input id="teacher"/></label>
+        <label>教室（ID）：<input id="room"/></label>
+        <label>星期（Mon/Tue/...）：<input id="dayOfWeek" placeholder="Mon"/></label>
+        <label>开始时间（HH:MM）：<input id="startTime" placeholder="08:00"/></label>
+        <label>结束时间（HH:MM）：<input id="endTime" placeholder="10:00"/></label>
+        <button type="button" id="addSchedule">添加排课</button>
+      </form>
+
+      <table class="simple-table" id="schedulesTable">
+        <thead><tr><th>课程</th><th>教师</th><th>教室</th><th>时间</th></tr></thead>
+        <tbody>
+          <tr><td>CS101</td><td>王老师</td><td>A101</td><td>周一 08:00-10:00</td></tr>
+        </tbody>
+      </table>
+    </main>
+  </div>
+  <script src="api.js"></script>
+  <script>
+    const schedulesTbody = document.querySelector('#schedulesTable tbody');
+    document.getElementById('addSchedule').addEventListener('click', async ()=>{
+      const btn = document.getElementById('addSchedule');
+      const courseCode = document.getElementById('courseNo').value||'';
+      const teacherId = document.getElementById('teacher').value||'';
+      const roomId = document.getElementById('room').value||'';
+      const dayOfWeek = document.getElementById('dayOfWeek').value||'Mon';
+      const startTime = document.getElementById('startTime').value||'';
+      const endTime = document.getElementById('endTime').value||'';
+      try{
+        btn.disabled = true; btn.textContent = '提交中...';
+        // 先创建教学任务（若后端需要 teaching_id）
+        const ta = await api.resources.teachingAssignments.create({ teacher_id: teacherId, course_id: courseCode, semester: (new Date()).getFullYear() + '-1' });
+        const teachingId = (ta && (ta.id||ta.teaching_id)) || null;
+        // 再创建课程安排，使用后端期望的字段
+        await api.resources.courseSchedules.create({ teaching_id: teachingId, classroom_id: roomId, day_of_week: dayOfWeek, start_time: startTime, end_time: endTime });
+        const displayTime = `${dayOfWeek} ${startTime}-${endTime}`;
+        const tr = document.createElement('tr'); tr.innerHTML = `<td>${courseCode}</td><td>${teacherId}</td><td>${roomId}</td><td>${displayTime}</td>`;
+        schedulesTbody.appendChild(tr);
+      }catch(err){
+        alert('提交排课失败：'+(err && err.message? err.message : err)+' （已在页面显示本地条目）');
+        const displayTime = `${dayOfWeek} ${startTime}-${endTime}`;
+        const tr = document.createElement('tr'); tr.innerHTML = `<td>${courseCode}</td><td>${teacherId}</td><td>${roomId}</td><td>${displayTime}</td>`;
+        schedulesTbody.appendChild(tr);
+      }finally{ btn.disabled = false; btn.textContent = '添加排课' }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>课程管理</title>
+  <link rel="stylesheet" href="../CSS/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <h1>教学管理端</h1>
+    <nav class="top-nav">
+      <a href="index.html">仪表盘</a>
+      <a href="classes.html">班级管理</a>
+      <a href="students.html">学生管理</a>
+      <a href="courses.html">课程管理</a>
+      <a href="teachers.html">教师管理</a>
+      <a href="courseplan.html">开课计划</a>
+      <a href="timetable.html">课程表</a>
+      <a href="grades.html">成绩审核</a>
+      <a href="classrooms.html">教室管理</a>
+    </nav>
+  </header>
+  <div class="admin-container">
+    <aside class="admin-sidebar">
+      <ul>
+        <li><a href="index.html">仪表盘</a></li>
+        <li><a href="classes.html">班级管理</a></li>
+        <li><a href="students.html">学生管理</a></li>
+        <li><a href="courses.html">课程管理</a></li>
+        <li><a href="teachers.html">教师管理</a></li>
+        <li><a href="courseplan.html">开课计划</a></li>
+        <li><a href="timetable.html">课程表</a></li>
+        <li><a href="grades.html">成绩审核</a></li>
+        <li><a href="classrooms.html">教室管理</a></li>
+      </ul>
+    </aside>
+    <main class="admin-main">
+      <h2>课程列表</h2>
+      <button id="newCourseBtn">添加课程</button>
+      <form id="courseForm" class="hidden">
+        <label>课程号：<input id="courseNo"></label>
+        <label>课程名：<input id="courseName"></label>
+        <label>学分：<input id="courseCredit" type="number"></label>
+        <label>授课教师：<input id="courseTeacher"></label>
+        <button type="button" id="addCourse">保存</button>
+      </form>
+
+      <table class="simple-table" id="coursesTable">
+        <thead><tr><th>课程号</th><th>课程名</th><th>学分</th><th>教师</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr><td>CS101</td><td>计算机导论</td><td>3</td><td>王老师</td><td><button>编辑</button></td></tr>
+        </tbody>
+      </table>
+      <div id="coursesPagination" class="pagination"></div>
+    </main>
+  </div>
+  <script src="api.js"></script>
+  <script>
+    const tbody = document.querySelector('#coursesTable tbody');
+    let coursesPage = 1, coursesPageSize = 10, coursesTotalPages = 1;
+    function renderCoursesPagination(){
+      const el = document.getElementById('coursesPagination'); if(!el) return; el.innerHTML = '';
+      const prev = document.createElement('button'); prev.textContent = '上一页'; prev.disabled = coursesPage<=1;
+      const next = document.createElement('button'); next.textContent = '下一页'; next.disabled = coursesPage>=coursesTotalPages;
+      prev.addEventListener('click', ()=>{ coursesPage = Math.max(1, coursesPage-1); loadCourses(coursesPage) });
+      next.addEventListener('click', ()=>{ coursesPage = Math.min(coursesTotalPages, coursesPage+1); loadCourses(coursesPage) });
+      const info = document.createElement('span'); info.textContent = ` 第 ${coursesPage} / ${coursesTotalPages} 页 `;
+      el.appendChild(prev); el.appendChild(info); el.appendChild(next);
+    }
+
+    async function loadCourses(page = 1){
+      try{
+        const data = await api.resources.courses.list(`page=${page}&pageSize=${coursesPageSize}`);
+        let itemsArr = [];
+        if(data){ if(data.pagination){ coursesTotalPages = data.pagination.totalPages||1; coursesPage = data.pagination.currentPage||page };
+          itemsArr = data.courses || data.items || (Array.isArray(data)? data: []);
+        }
+        tbody.innerHTML = '';
+        itemsArr.forEach(c=>{
+          const tr = document.createElement('tr'); tr.dataset.id = c.id;
+          tr.innerHTML = `<td>${c.course_code||''}</td><td>${c.course_name||''}</td><td>${c.credits||''}</td><td>${(c.teachers && c.teachers[0])? c.teachers[0].full_name : ''}</td><td><button class="edit">编辑</button><button class="delete">删除</button></td>`;
+          tbody.appendChild(tr);
+        });
+        renderCoursesPagination();
+      }catch(e){ alert('加载课程失败:'+e.message) }
+    }
+
+    document.getElementById('newCourseBtn').addEventListener('click', ()=>document.getElementById('courseForm').classList.toggle('hidden'));
+    document.getElementById('addCourse').addEventListener('click', async ()=>{
+      const btn = document.getElementById('addCourse');
+      const body = { course_code: document.getElementById('courseNo').value, course_name: document.getElementById('courseName').value, credits: parseFloat(document.getElementById('courseCredit').value)||0, department: '' };
+      try{ btn.disabled = true; btn.textContent = '保存中...'; const created = await api.resources.courses.create(body); alert('添加成功'); document.getElementById('courseForm').classList.add('hidden'); loadCourses(); }catch(e){ alert('添加失败:'+ (e && e.message? e.message : e)) }finally{ btn.disabled = false; btn.textContent = '保存' };
+    });
+
+    tbody.addEventListener('click', async (e)=>{
+      const tr = e.target.closest('tr'); if(!tr) return; const id = tr.dataset.id;
+      if(e.target.classList.contains('edit')){
+        const name = prompt('课程名：', tr.children[1].textContent); if(name==null) return;
+        try{ const updated = await api.resources.courses.update(id, { course_name: name }); alert('更新成功'); loadCourses(); }catch(err){ alert('更新失败:'+ (err && err.message? err.message : err)) }
+      }else if(e.target.classList.contains('delete')){
+        if(!confirm('确认删除该课程？')) return;
+        try{ await api.resources.courses.delete(id); alert('删除成功'); loadCourses(); }catch(err){ alert('删除失败:'+ (err && err.message? err.message : err)) }
+      }
+    });
+
+    loadCourses();
+  </script>
+</body>
+</html>

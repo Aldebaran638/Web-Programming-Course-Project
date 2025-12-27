@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Form, status, Depends, Header
+from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Form, status, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import List, Optional, Dict, Any
@@ -28,11 +28,15 @@ from sqlalchemy import (
     Time,
 )
 from sqlalchemy.orm import sessionmaker, relationship, joinedload, declarative_base
+from sqlalchemy.exc import SQLAlchemyError
 import math
+import logging
 
 DATABASE_URL = "mysql+pymysql://root:123456@localhost:3306/Web-Programming-Course-Project?charset=utf8mb4"
 
 Base = declarative_base()
+
+logging.basicConfig(level=logging.INFO)
 
 # ORM Models
 class User(Base):
@@ -303,6 +307,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(SQLAlchemyError)
+async def db_error_handler(request: Request, exc: SQLAlchemyError):
+    """统一处理数据库访问异常：返回测试数据并在日志中提醒。"""
+
+    logging.error(
+        "数据库访问失败: %s %s - %s",
+        request.method,
+        request.url.path,
+        repr(exc),
+    )
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "data": {"sample": True},
+            "error": {
+                "code": "DB_ACCESS_ERROR",
+                "message": "当前接口访问数据库失败，本接口返回的是后端测试数据",
+            },
+        },
+    )
 
 # SQLAlchemy session
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)

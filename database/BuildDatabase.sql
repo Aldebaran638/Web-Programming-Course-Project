@@ -3,7 +3,10 @@
 CREATE DATABASE IF NOT EXISTS `Web-Programming-Course-Project` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `Web-Programming-Course-Project`;
 
--- 先删除所有表（如存在，注意外键依赖顺序）
+-- 为了避免外键约束导致的删除顺序错误，先临时关闭外键检查
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- 先删除所有表（如存在）
 DROP TABLE IF EXISTS `Logs`;
 DROP TABLE IF EXISTS `CourseSchedules`;
 DROP TABLE IF EXISTS `Classrooms`;
@@ -254,9 +257,10 @@ CREATE INDEX idx_logs_ip_address ON `Logs`(`ip_address`);
 
 -- Users
 INSERT INTO `Users` (`username`, `password_hash`, `role`, `email`, `status`) VALUES
-('student01', 'hash1', 'student', 'student01@example.com', 'active'),
-('teacher01', 'hash2', 'teacher', 'teacher01@example.com', 'active'),
-('admin01', 'hash3', 'sys_admin', 'admin01@example.com', 'active');
+('demo_student', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'student', 'demo_student@example.com', 'active'),
+('demo_teacher', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'teacher', 'demo_teacher@example.com', 'active'),
+('demo_edu_admin', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'edu_admin', 'demo_edu_admin@example.com', 'active'),
+('demo_sys_admin', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'sys_admin', 'demo_sys_admin@example.com', 'active');
 
 -- Classes
 INSERT INTO `Classes` (`class_name`, `department`, `enrollment_year`) VALUES
@@ -264,13 +268,14 @@ INSERT INTO `Classes` (`class_name`, `department`, `enrollment_year`) VALUES
 ('计算机2102班', '计算机系', 2021);
 
 -- StudentProfiles
+-- demo_student 的用户 id = 1
 INSERT INTO `StudentProfiles` (`user_id`, `student_id_number`, `full_name`, `class_id`) VALUES
-(1, '20210001', '张三', 1),
-(1, '20210002', '李四', 2);
+(1, '20250001', '示例学生', 1);
 
 -- TeacherProfiles
+-- demo_teacher 的用户 id = 2
 INSERT INTO `TeacherProfiles` (`user_id`, `teacher_id_number`, `full_name`, `title`) VALUES
-(2, 'T2021001', '王老师', '副教授');
+(2, 'T20250001', '示例教师', '教授');
 
 -- Courses
 INSERT INTO `Courses` (`course_code`, `course_name`, `credits`, `department`) VALUES
@@ -283,10 +288,13 @@ INSERT INTO `CourseMaterials` (`course_id`, `material_type`, `title`, `file_path
 (1, 'carousel_image', '轮播图1', '/images/cs101/banner1.jpg', 2);
 
 -- TeachingAssignments
+-- 这里的 teacher_id 指向 TeacherProfiles.id，示例中 demo_teacher 的教师档案为 id = 1
 INSERT INTO `TeachingAssignments` (`teacher_id`, `course_id`, `semester`) VALUES
-(1, 1, '2023-2024-1');
+(1, 1, '2023-2024-1'),      -- demo_teacher 在 2023-2024-1 学期教授 CS101
+(1, 2, '2024-2025-1');      -- demo_teacher 在 2024-2025-1 学期教授 SE201
 
 -- Enrollments
+-- 这里的 student_id 指向 StudentProfiles.id，示例中 demo_student 的学生档案为 id = 1
 INSERT INTO `Enrollments` (`student_id`, `course_id`, `semester`) VALUES
 (1, 1, '2023-2024-1'),
 (1, 2, '2023-2024-1');
@@ -324,3 +332,6 @@ INSERT INTO `Logs` (`user_id`, `action`, `details`, `ip_address`) VALUES
 (1, 'USER_LOGIN', '登录成功', '127.0.0.1');
 
 -- 示例数据插入完毕。
+
+-- 重新开启外键检查
+SET FOREIGN_KEY_CHECKS = 1;

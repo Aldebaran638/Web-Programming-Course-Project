@@ -487,6 +487,111 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> CurrentUser
     return user
 
 
+class DevRegisterRequest(BaseModel):
+    """开发环境用的简化注册请求模型。
+
+    仅供本课程项目开发调试使用，不做复杂校验。
+    """
+
+    username: str
+    password: str
+    role: str  # student/teacher/edu_admin/sys_admin
+    email: str
+    full_name: Optional[str] = None
+    class_id: Optional[int] = None          # 学生可选班级
+    student_id_number: Optional[str] = None # 学号
+    teacher_id_number: Optional[str] = None # 工号
+    title: Optional[str] = None             # 教师职称
+
+
+@app.post("/api/v1/dev/register")
+def dev_register(payload: DevRegisterRequest):
+    """开发用注册接口：可以快速创建任意角色用户及其档案。
+
+    - student: 创建 Users + StudentProfiles（可选 class_id、student_id_number、full_name）
+    - teacher: 创建 Users + TeacherProfiles（可选 teacher_id_number、full_name、title）
+    - edu_admin/sys_admin: 仅创建 Users 记录
+    """
+
+    if payload.role not in {"student", "teacher", "edu_admin", "sys_admin"}:
+        raise HTTPException(status_code=400, detail={
+            "error": {"code": "INVALID_ROLE", "message": "role 必须是 student/teacher/edu_admin/sys_admin 之一"}
+        })
+
+    session = SessionLocal()
+    try:
+        # 简单唯一性检查
+        exists = session.query(User).filter(User.username == payload.username, User.is_deleted == False).first()
+        if exists:
+            raise HTTPException(status_code=400, detail={
+                "error": {"code": "USERNAME_EXISTS", "message": "该用户名已存在"}
+            })
+
+        exists_email = session.query(User).filter(User.email == payload.email, User.is_deleted == False).first()
+        if exists_email:
+            raise HTTPException(status_code=400, detail={
+                "error": {"code": "EMAIL_EXISTS", "message": "该邮箱已被使用"}
+            })
+
+        user = User(
+            username=payload.username,
+            password_hash=hash_password(payload.password),
+            role=payload.role,
+            email=payload.email,
+            status="active",
+            is_deleted=False,
+        )
+        session.add(user)
+        session.flush()
+
+        created_profile = None
+
+        if payload.role == "student":
+            # 如果未提供学号，则使用 username 作为学号
+            sid = payload.student_id_number or payload.username
+            # 如果未提供姓名，则用用户名占位
+            full_name = payload.full_name or payload.username
+
+            # 可选班级检查（不存在则直接忽略，让前端简化）
+            class_id = None
+            if payload.class_id:
+                cls = session.query(Class).filter(Class.id == payload.class_id, Class.is_deleted == False).first()
+                class_id = cls.id if cls else None
+
+            created_profile = StudentProfile(
+                user_id=user.id,
+                student_id_number=sid,
+                full_name=full_name,
+                class_id=class_id,
+            )
+            session.add(created_profile)
+
+        elif payload.role == "teacher":
+            tid = payload.teacher_id_number or payload.username
+            full_name = payload.full_name or payload.username
+            created_profile = TeacherProfile(
+                user_id=user.id,
+                teacher_id_number=tid,
+                full_name=full_name,
+                title=payload.title or "讲师",
+            )
+            session.add(created_profile)
+
+        session.commit()
+
+        return {
+            "message": "注册成功（开发模式）",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "role": user.role,
+                "email": user.email,
+            },
+        }
+    finally:
+        session.close()
+
+
 @app.post("/api/v1/auth/login", response_model=LoginResponse)
 def login(payload: LoginRequest):
     session = SessionLocal()
@@ -1084,6 +1189,7 @@ def get_grades_summary(semester: Optional[str] = None, current_user: CurrentUser
             gpa = score_to_gpa(total_score)
             result[sem]["courses"].append(
                 {
+                    "enrollment_id": e.id,
                     "course_name": course.course_name,
                     "credits": float(course.credits),
                     "final_score": round(total_score, 1),

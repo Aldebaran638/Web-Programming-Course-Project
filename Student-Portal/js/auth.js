@@ -2,17 +2,14 @@
 function checkLogin() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
-    
-    // 如果是登录页面，不需要重定向
-    if (window.location.pathname.includes('login.html')) {
-        return;
-    }
-    
+
+    // Student-Portal 下的所有业务页面都需要登录；
+    // 如果本地没有凭证，则跳转到统一登录网关 aldebaran/page.html。
     if (!token || !user) {
-        window.location.href = 'login.html';
+        window.location.href = '../aldebaran/page.html';
         return null;
     }
-    
+
     return JSON.parse(user);
 }
 
@@ -44,7 +41,8 @@ async function handleLogin() {
 function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.href = 'login.html';
+    // 退出后跳转回统一登录网关
+    window.location.href = '../aldebaran/page.html';
 }
 
 // 忘记密码

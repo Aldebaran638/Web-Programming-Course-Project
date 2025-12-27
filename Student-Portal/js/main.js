@@ -308,7 +308,7 @@ function displayGrades(data, selectedSemester) {
             <td>${course.credits}</td>
             <td>${course.final_score}</td>
             <td>${course.gpa}</td>
-            <td><button class="btn-view-detail" onclick="showGradeDetail(${course.course_id})">查看详情</button></td>
+            <td><button class="btn-view-detail" onclick="showGradeDetail(${course.enrollment_id})">查看详情</button></td>
         `;
         tableBody.appendChild(row);
     });
@@ -316,35 +316,28 @@ function displayGrades(data, selectedSemester) {
 
 let currentGradeDetail = null;
 
-async function showGradeDetail(courseId) {
-    // 这里需要根据courseId获取成绩详情
-    // 目前使用模拟数据
-    currentGradeDetail = {
-        courseName: '计算机科学导论',
-        items: [
-            { name: '作业1', weight: 0.15, score: 90 },
-            { name: '作业2', weight: 0.15, score: 95 },
-            { name: '期中考试', weight: 0.30, score: 88 },
-            { name: '期末考试', weight: 0.40, score: 94 }
-        ],
-        finalScore: 92.5
-    };
-    
+async function showGradeDetail(enrollmentId) {
+    // 调用后端接口获取真实成绩详情
+    const detail = await getCourseGrades(enrollmentId);
+    if (!detail) return;
+    currentGradeDetail = detail;
     displayGradeDetail();
 }
 
 function displayGradeDetail() {
-    document.getElementById('detailCourseName').textContent = `${currentGradeDetail.courseName} - 成绩详情`;
+    if (!currentGradeDetail) return;
+
+    document.getElementById('detailCourseName').textContent = `${currentGradeDetail.course_name} - 成绩详情`;
     
     const detailBody = document.getElementById('gradeDetailBody');
     detailBody.innerHTML = '';
     
-    currentGradeDetail.items.forEach(item => {
+    (currentGradeDetail.grade_items || []).forEach(item => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${item.name}</td>
+            <td>${item.item_name}</td>
             <td>${(item.weight * 100)}%</td>
-            <td>${item.score}</td>
+            <td>${item.score != null ? item.score : '-'}</td>
         `;
         detailBody.appendChild(row);
     });
@@ -353,7 +346,7 @@ function displayGradeDetail() {
     totalRow.innerHTML = `
         <td><strong>最终成绩</strong></td>
         <td><strong>100%</strong></td>
-        <td><strong>${currentGradeDetail.finalScore}</strong></td>
+        <td><strong>${currentGradeDetail.final_score}</strong></td>
     `;
     detailBody.appendChild(totalRow);
     

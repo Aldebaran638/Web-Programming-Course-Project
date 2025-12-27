@@ -1,0 +1,99 @@
+<section class="login-section">
+  <button id="back-to-home-btn" class="back-home-btn" aria-label="返回首页">
+    <svg
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle
+        cx="20"
+        cy="20"
+        r="19"
+        fill="#ffffff"
+        stroke="#2d4373"
+        stroke-width="1.5"
+      />
+      <polyline
+        points="22,12 14,20 22,28"
+        fill="none"
+        stroke="#2d4373"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <line
+        x1="14"
+        y1="20"
+        x2="26"
+        y2="20"
+        stroke="#2d4373"
+        stroke-width="2"
+        stroke-linecap="round"
+      />
+    </svg>
+  </button>
+
+  <h2>开发用注册用户</h2>
+  <p style="margin-bottom: 16px; color: #555; font-size: 0.95rem">
+    该功能仅供本课程项目开发调试使用，可快速创建学生、教师、教学管理员或系统管理员账号。
+  </p>
+
+  <form id="dev-register-form" class="login-form">
+    <div class="form-group">
+      <label for="reg-username">用户名（登录账号）</label>
+      <input id="reg-username" class="login-input" type="text" required />
+    </div>
+
+    <div class="form-group">
+      <label for="reg-password">密码</label>
+      <input id="reg-password" class="login-input" type="password" required />
+    </div>
+
+    <div class="form-group">
+      <label for="reg-email">邮箱</label>
+      <input id="reg-email" class="login-input" type="email" required />
+    </div>
+
+    <div class="form-group">
+      <label for="reg-role">角色</label>
+      <select id="reg-role" class="login-input" required>
+        <option value="student">学生（student）</option>
+        <option value="teacher">教师（teacher）</option>
+        <option value="edu_admin">教学管理员（edu_admin）</option>
+        <option value="sys_admin">系统管理员（sys_admin）</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="reg-fullname">姓名（可选，默认等于用户名）</label>
+      <input id="reg-fullname" class="login-input" type="text" />
+    </div>
+
+    <div id="student-extra" style="display: none">
+      <div class="form-group">
+        <label for="reg-student-id">学号（可选，默认等于用户名）</label>
+        <input id="reg-student-id" class="login-input" type="text" />
+      </div>
+      <div class="form-group">
+        <label for="reg-class-id">班级ID（可选）</label>
+        <input id="reg-class-id" class="login-input" type="number" min="1" />
+      </div>
+    </div>
+
+    <div id="teacher-extra" style="display: none">
+      <div class="form-group">
+        <label for="reg-teacher-id">工号（可选，默认等于用户名）</label>
+        <input id="reg-teacher-id" class="login-input" type="text" />
+      </div>
+      <div class="form-group">
+        <label for="reg-title">职称（可选，默认“讲师”）</label>
+        <input id="reg-title" class="login-input" type="text" />
+      </div>
+    </div>
+
+    <button type="submit" class="login-btn">提交注册（开发模式）</button>
+  </form>
+
+  <div id="register-message" class="login-message"></div>
+</section>

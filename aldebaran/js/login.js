@@ -50,8 +50,18 @@
             .then(res => res.json().then(data => ({ status: res.status, data })))
             .then(({ status, data }) => {
                 if (status === 200) {
+                    // 登录成功：保存凭证并跳转到学生门户首页
+                    if (data && data.token && data.user) {
+                        try {
+                            localStorage.setItem('token', data.token);
+                            localStorage.setItem('user', JSON.stringify(data.user));
+                        } catch (e) {
+                            console.warn('无法写入本地登录凭证:', e);
+                        }
+                    }
                     showMessage('登录成功，欢迎 ' + data.user.username + '！');
-                    // TODO: 跳转到个人主页或刷新页面
+                    // 跳转到学生端门户主页
+                    window.location.href = '../Student-Portal/index.html';
                 } else if (status === 401) {
                     showMessage(data.error?.message || '用户名或密码错误', true);
                 } else if (status === 423) {

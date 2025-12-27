@@ -302,12 +302,18 @@ INSERT INTO `Enrollments` (`student_id`, `course_id`, `semester`) VALUES
 -- GradeItems
 INSERT INTO `GradeItems` (`course_id`, `item_name`, `weight`) VALUES
 (1, '作业1', 0.2),
-(1, '期末考试', 0.8);
+(1, '期末考试', 0.8),
+-- SE201 成绩项，用于学生端测试第二门课的成绩
+(2, '课堂表现', 0.3),
+(2, '课程项目', 0.7);
 
 -- Grades
 INSERT INTO `Grades` (`enrollment_id`, `grade_item_id`, `score`, `status`) VALUES
 (1, 1, 85.0, 'graded'),
-(1, 2, 90.0, 'graded');
+(1, 2, 90.0, 'graded'),
+-- enrollment_id = 2 对应 demo_student 选修 SE201 的成绩
+(2, 3, 88.0, 'graded'),
+(2, 4, 92.0, 'graded');
 
 -- Assignments
 INSERT INTO `Assignments` (`course_id`, `title`, `type`) VALUES
@@ -318,6 +324,12 @@ INSERT INTO `Assignments` (`course_id`, `title`, `type`) VALUES
 INSERT INTO `AssignmentSubmissions` (`assignment_id`, `student_id`, `file_path`, `score`) VALUES
 (1, 1, '/submits/1_1.pdf', 88.0);
 
+-- TaskProgress 示例数据：demo_student 在 CS101 课程中的学习任务进度
+-- enrollment_id = 1 对应 demo_student 选修 CS101
+-- material_id = 1,2 对应上面的两条课程资料
+INSERT INTO `TaskProgress` (`enrollment_id`, `material_id`, `status`, `last_access_time`) VALUES
+(1, 1, 'todo',  NOW()),
+(1, 2, 'done',  NOW());
 -- Classrooms
 INSERT INTO `Classrooms` (`name`, `location`, `capacity`) VALUES
 ('A101', '一号楼', 60),

@@ -53,13 +53,22 @@ function loadRegisterPage() {
 
 // 顶部导航按钮事件
 document.addEventListener('DOMContentLoaded', function() {
-    // 如果已经有登录凭证，直接跳转到学生门户首页
+    // 如果已经有登录凭证，按角色自动跳转到对应前端
     try {
         const token = localStorage.getItem('token');
-        const user = localStorage.getItem('user');
-        if (token && user) {
-            window.location.href = '../Student-Portal/index.html';
-            return;
+        const userRaw = localStorage.getItem('user');
+        if (token && userRaw) {
+            let user = null;
+            try { user = JSON.parse(userRaw); } catch (e) { user = null; }
+            if (user && user.role === 'teacher') {
+                // 教师登录：跳转到教师端前端（new.html 为主体页面）
+                window.location.href = '../webhuangjunhao/new.html';
+                return;
+            } else if (user && user.role === 'student') {
+                // 学生登录：跳转到学生端门户
+                window.location.href = '../Student-Portal/index.html';
+                return;
+            }
         }
     } catch (e) {
         console.warn('检测登录状态失败:', e);

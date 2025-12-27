@@ -3,7 +3,10 @@ const API_BASE = 'http://127.0.0.1:8000/api/v1'
 
 function getToken(){return localStorage.getItem('token')}
 function setToken(t){localStorage.setItem('token',t)}
-function clearToken(){localStorage.removeItem('token')}
+function clearToken(){
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+}
 
 async function apiFetch(path, options={}){
   options.headers = options.headers || {}
@@ -23,37 +26,48 @@ async function apiFetch(path, options={}){
 
 // 登录逻辑
 document.addEventListener('DOMContentLoaded',()=>{
+  // 没有登录凭证时统一跳转到网关登录页
+  if(!getToken()){
+    window.location.href = '../aldebaran/page.html'
+    return
+  }
   const loginBtn = document.getElementById('btn-login')
   const logoutBtn = document.getElementById('btn-logout')
   const modal = document.getElementById('login-modal')
   const form = document.getElementById('login-form')
   if(loginBtn) loginBtn.onclick = ()=> modal.classList.remove('hidden')
   if(document.getElementById('login-cancel')) document.getElementById('login-cancel').onclick = ()=> modal.classList.add('hidden')
-  if(logoutBtn) logoutBtn.onclick = ()=>{ clearToken(); location.reload() }
+  if(logoutBtn) logoutBtn.onclick = ()=>{
+    clearToken();
+    // 退出统一回到网关
+    window.location.href = '../aldebaran/page.html'
+  }
   if(form) form.onsubmit = async (e)=>{
     e.preventDefault();
     const f = new FormData(form)
     try{
       const payload = {username: f.get('username'), password: f.get('password')}
-      const data = await fetch(API_BASE + '/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-      const j = await data.json()
-      setToken(j.token)
+      const j = await apiFetch('/auth/login',{method:'POST', body: payload})
+      if(j && j.token){
+        setToken(j.token)
+        try{ localStorage.setItem('user', JSON.stringify(j.user)) }catch(e){ console.warn('无法写入 user:', e) }
+      }
       modal.classList.add('hidden')
       document.getElementById('btn-login').style.display='none'
       document.getElementById('btn-logout').style.display='inline-block'
       showMessage('登录成功',false)
-      if(location.pathname.endsWith('/aldebaran/index.html')) loadTeachingAssignments()
+      if(location.pathname.endsWith('/webhuangjunhao/index.html')) loadTeachingAssignments()
     }catch(err){ showMessage('登录失败：'+ (err?.data?.error?.message || err?.data?.message || err), true) }
   }
 
   // 页面特定初始化
-  if(location.pathname.endsWith('/aldebaran/index.html') || location.pathname.endsWith('/aldebaran/')){
+  if(location.pathname.endsWith('/webhuangjunhao/index.html') || location.pathname.endsWith('/webhuangjunhao/')){
     if(getToken()){ document.getElementById('btn-login').style.display='none'; document.getElementById('btn-logout').style.display='inline-block' }
     loadTeachingAssignments()
   }
-  if(location.pathname.endsWith('/aldebaran/course.html')) initCoursePage()
-  if(location.pathname.endsWith('/aldebaran/assignments.html')) initAssignmentsPage()
-  if(location.pathname.endsWith('/aldebaran/grades.html')) initGradesPage()
+  if(location.pathname.endsWith('/webhuangjunhao/course.html')) initCoursePage()
+  if(location.pathname.endsWith('/webhuangjunhao/assignments.html')) initAssignmentsPage()
+  if(location.pathname.endsWith('/webhuangjunhao/grades.html')) initGradesPage()
 })
 
 function showMessage(msg,isError=false){

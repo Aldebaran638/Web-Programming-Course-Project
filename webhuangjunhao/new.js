@@ -1,3 +1,46 @@
+// 简单的登录状态检查：无 token 直接回网关
+try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '../aldebaran/page.html';
+    }
+} catch (e) {
+    window.location.href = '../aldebaran/page.html';
+}
+
+function getAuthHeaders() {
+    let token = null;
+    try {
+        token = localStorage.getItem('token');
+    } catch (e) {
+        token = null;
+    }
+    if (!token) {
+        // 若在操作过程中 token 丢失，则退回网关
+        try {
+            window.location.href = '../aldebaran/page.html';
+        } catch (e) {}
+        return {};
+    }
+    return { 'Authorization': 'Bearer ' + token };
+}
+
+function clearAuth() {
+    try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+    } catch (e) {}
+}
+
+// 绑定退出登录按钮（如果存在）
+const logoutBtn = document.getElementById('logout-btn');
+if (logoutBtn) {
+    logoutBtn.onclick = function() {
+        clearAuth();
+        window.location.href = '../aldebaran/page.html';
+    };
+}
+
 document.getElementById('assignmentForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const courseId = document.getElementById('courseId').value.trim();
@@ -32,9 +75,9 @@ document.getElementById('assignmentForm').addEventListener('submit', async funct
     try {
         const resp = await fetch(`http://127.0.0.1:8000/api/v1/courses/${courseId}/assignments`, {
             method: 'POST',
-            headers: {
+            headers: Object.assign({
                 'Content-Type': 'application/json'
-            },
+            }, getAuthHeaders()),
             body: JSON.stringify(payload)
         });
         if (resp.status === 201) {
@@ -70,7 +113,9 @@ document.getElementById('submissionQueryForm').addEventListener('submit', async 
     resultDiv.textContent = '查询中...';
     resultDiv.className = 'result';
     try {
-        const resp = await fetch(`http://127.0.0.1:8000/api/v1/assignments/${assignmentId}/submissions`);
+        const resp = await fetch(`http://127.0.0.1:8000/api/v1/assignments/${assignmentId}/submissions`, {
+            headers: getAuthHeaders()
+        });
         if (resp.ok) {
             const data = await resp.json();
             if (!Array.isArray(data) || data.length === 0) {
@@ -121,7 +166,9 @@ document.getElementById('teachingAssignmentsForm').addEventListener('submit', as
     resultDiv.textContent = '查询中...';
     resultDiv.className = 'result';
     try {
-        const resp = await fetch(url);
+        const resp = await fetch(url, {
+            headers: getAuthHeaders()
+        });
         if (resp.ok) {
             const data = await resp.json();
             if (!Array.isArray(data) || data.length === 0) {
@@ -181,6 +228,7 @@ document.getElementById('materialUploadForm').addEventListener('submit', async f
     try {
         const resp = await fetch(`http://127.0.0.1:8000/api/v1/courses/${courseId}/materials`, {
             method: 'POST',
+            headers: getAuthHeaders(),
             body: formData
         });
         if (resp.status === 201) {
@@ -224,9 +272,9 @@ document.getElementById('courseConfigForm').addEventListener('submit', async fun
     try {
         const resp = await fetch(`http://127.0.0.1:8000/api/v1/courses/${courseId}/config`, {
             method: 'PATCH',
-            headers: {
+            headers: Object.assign({
                 'Content-Type': 'application/json'
-            },
+            }, getAuthHeaders()),
             body: JSON.stringify(payload)
         });
         if (resp.ok) {
@@ -276,9 +324,9 @@ document.getElementById('gradeItemForm').addEventListener('submit', async functi
     try {
         const resp = await fetch(`http://127.0.0.1:8000/api/v1/courses/${courseId}/grade-items`, {
             method: 'POST',
-            headers: {
+            headers: Object.assign({
                 'Content-Type': 'application/json'
-            },
+            }, getAuthHeaders()),
             body: JSON.stringify(payload)
         });
         if (resp.status === 201) {
@@ -322,9 +370,9 @@ document.getElementById('updateGradeForm').addEventListener('submit', async func
     try {
         const resp = await fetch(`http://127.0.0.1:8000/api/v1/grades/${gradeId}`, {
             method: 'PUT',
-            headers: {
+            headers: Object.assign({
                 'Content-Type': 'application/json'
-            },
+            }, getAuthHeaders()),
             body: JSON.stringify(payload)
         });
         if (resp.ok) {
@@ -365,6 +413,7 @@ document.getElementById('batchUploadGradesForm').addEventListener('submit', asyn
     try {
         const resp = await fetch(`http://127.0.0.1:8000/api/v1/grade-items/${itemId}/grades/batch-upload`, {
             method: 'POST',
+            headers: getAuthHeaders(),
             body: formData
         });
         if (resp.ok) {

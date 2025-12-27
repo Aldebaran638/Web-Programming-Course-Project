@@ -50,7 +50,7 @@
             .then(res => res.json().then(data => ({ status: res.status, data })))
             .then(({ status, data }) => {
                 if (status === 200) {
-                    // 登录成功：保存凭证并跳转到学生门户首页
+                    // 登录成功：保存凭证并按角色跳转
                     if (data && data.token && data.user) {
                         try {
                             localStorage.setItem('token', data.token);
@@ -60,8 +60,20 @@
                         }
                     }
                     showMessage('登录成功，欢迎 ' + data.user.username + '！');
-                    // 跳转到学生端门户主页
-                    window.location.href = '../Student-Portal/index.html';
+
+                    const role = data.user?.role;
+                    if (role === 'teacher') {
+                        // 教师跳转到教师端前端（new.html 为主体页面）
+							window.location.href = '../webhuangjunhao/new.html';
+                    } else if (role === 'student') {
+                        // 学生跳转到学生端门户
+                            window.location.href = '../Student-Portal/index.html';
+                    } else {
+                        // 其他角色暂时留在网关首页
+                        if (typeof loadHome === 'function') {
+                            loadHome();
+                        }
+                    }
                 } else if (status === 401) {
                     showMessage(data.error?.message || '用户名或密码错误', true);
                 } else if (status === 423) {

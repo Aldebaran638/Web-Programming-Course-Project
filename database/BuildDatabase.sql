@@ -302,12 +302,19 @@ INSERT INTO `Enrollments` (`student_id`, `course_id`, `semester`) VALUES
 -- GradeItems
 INSERT INTO `GradeItems` (`course_id`, `item_name`, `weight`) VALUES
 (1, '作业1', 0.2),
-(1, '期末考试', 0.8);
+(1, '期末考试', 0.8),
+-- 为 SE201 课程增加两个考核项，便于成绩审核测试
+(2, '平时作业', 0.4),
+(2, '期末考试', 0.6);
 
 -- Grades
 INSERT INTO `Grades` (`enrollment_id`, `grade_item_id`, `score`, `status`) VALUES
 (1, 1, 85.0, 'graded'),
-(1, 2, 90.0, 'graded');
+(1, 2, 90.0, 'graded'),
+-- enrollment_id = 2 对应 demo_student 选修 SE201 的选课记录
+-- 下面两条用于制造“待审核”且优秀率不算太高的课程
+(2, 3, 72.0, 'pending'),
+(2, 4, 88.0, 'pending');
 
 -- Assignments
 INSERT INTO `Assignments` (`course_id`, `title`, `type`) VALUES

@@ -68,6 +68,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 学生登录：跳转到学生端门户
                 window.location.href = '../Student-Portal/index.html';
                 return;
+            } else if (user && user.role === 'edu_admin') {
+                // 教学管理员：跳转到教学管理端
+                window.location.href = '../admin_page/edu-admin.html';
+                return;
+            } else if (user && user.role === 'sys_admin') {
+                // 系统管理员：跳转到系统管理端
+                window.location.href = '../admin_page/index.html';
+                return;
             }
         }
     } catch (e) {

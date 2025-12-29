@@ -32,7 +32,7 @@ from sqlalchemy.exc import SQLAlchemyError
 import math
 import logging
 
-DATABASE_URL = "mysql+pymysql://root:123456@localhost:3306/Web-Programming-Course-Project?charset=utf8mb4"
+DATABASE_URL = "mysql+pymysql://root:040205@localhost:3307/Web-Programming-Course-Project?charset=utf8mb4"
 
 Base = declarative_base()
 

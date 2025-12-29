@@ -64,10 +64,16 @@
                     const role = data.user?.role;
                     if (role === 'teacher') {
                         // 教师跳转到教师端前端（new.html 为主体页面）
-							window.location.href = '../webhuangjunhao/new.html';
+						window.location.href = '../webhuangjunhao/new.html';
                     } else if (role === 'student') {
                         // 学生跳转到学生端门户
-                            window.location.href = '../Student-Portal/index.html';
+							window.location.href = '../Student-Portal/index.html';
+                    } else if (role === 'edu_admin') {
+                        // 教学管理员跳转到教学管理端
+							window.location.href = '../admin_page/edu-admin.html';
+                    } else if (role === 'sys_admin') {
+                        // 系统管理员跳转到系统管理端
+							window.location.href = '../admin_page/index.html';
                     } else {
                         // 其他角色暂时留在网关首页
                         if (typeof loadHome === 'function') {

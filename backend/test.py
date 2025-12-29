@@ -1902,6 +1902,54 @@ def _require_edu_admin(current_user: CurrentUser):
         raise HTTPException(status_code=403, detail="仅教学管理员可以执行此操作")
 
 
+class EduAdminDashboardStats(BaseModel):
+    students: int
+    teachers: int
+    classes: int
+    courses: int
+
+
+@app.get("/api/v1/edu-admin/dashboard-stats", response_model=EduAdminDashboardStats)
+def get_edu_admin_dashboard_stats(current_user: CurrentUser = Depends(get_current_user)):
+    """教学管理员首页仪表板统计数据。
+
+    - 学生总数：未删除的学生档案数量
+    - 教师总数：未删除的教师档案数量
+    - 班级总数：未删除的班级数量
+    - 课程总数：未删除的课程数量
+    """
+
+    _require_edu_admin(current_user)
+
+    session = SessionLocal()
+    try:
+        students = (
+            session.query(StudentProfile)
+            .join(User, StudentProfile.user_id == User.id)
+            .filter(User.is_deleted == False)
+            .count()
+        )
+
+        teachers = (
+            session.query(TeacherProfile)
+            .join(User, TeacherProfile.user_id == User.id)
+            .filter(User.is_deleted == False)
+            .count()
+        )
+
+        classes = session.query(Class).filter(Class.is_deleted == False).count()
+        courses = session.query(Course).filter(Course.is_deleted == 0).count()
+
+        return EduAdminDashboardStats(
+            students=students,
+            teachers=teachers,
+            classes=classes,
+            courses=courses,
+        )
+    finally:
+        session.close()
+
+
 # 班级 CRUD
 @app.post("/api/v1/classes", status_code=status.HTTP_201_CREATED)
 def create_class(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
@@ -2672,11 +2720,19 @@ def delete_classroom(id: int, current_user: CurrentUser = Depends(get_current_us
         session.close()
 
 
+"""学期教学安排与课程表相关接口"""
+
+
 # 学期教学安排
 @app.post("/api/v1/teaching-assignments", status_code=status.HTTP_201_CREATED)
 def create_teaching_assignment(
     payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)
 ):
+    """创建单个授课任务：为某学期的课程分配教师。
+
+    对应文档中的“学期开课计划(创建课程,分配教师)”能力。
+    """
+
     _require_edu_admin(current_user)
 
     teacher_id = payload.get("teacher_id")
@@ -2717,10 +2773,59 @@ def create_teaching_assignment(
         session.close()
 
 
+@app.get("/api/v1/teaching-assignments")
+def list_teaching_assignments(
+    semester: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """按学期列出授课任务，用于教学管理员查看开课计划及前端课表管理。
+
+    返回课程和教师的基础信息，便于前端直接展示。
+    """
+
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        q = session.query(TeachingAssignment).options(
+            joinedload(TeachingAssignment.course),
+            joinedload(TeachingAssignment.teacher),
+        ).filter(TeachingAssignment.is_deleted == 0)
+
+        if semester:
+            q = q.filter(TeachingAssignment.semester == semester)
+
+        items = []
+        for ta in q.order_by(TeachingAssignment.id).all():
+            course = ta.course
+            teacher = ta.teacher
+            items.append(
+                {
+                    "id": ta.id,
+                    "semester": ta.semester,
+                    "course": {
+                        "id": course.id if course else None,
+                        "course_name": course.course_name if course else None,
+                    },
+                    "teacher": {
+                        "id": teacher.id if teacher else None,
+                        "full_name": teacher.full_name if teacher else None,
+                    }
+                    if teacher
+                    else None,
+                }
+            )
+
+        return items
+    finally:
+        session.close()
+
+
 @app.post("/api/v1/course-schedules", status_code=status.HTTP_201_CREATED)
 def create_course_schedule(
     payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)
 ):
+    """创建单条课程排课记录，对应“教室安排管理”。"""
+
     _require_edu_admin(current_user)
 
     teaching_id = payload.get("teaching_id")
@@ -2783,6 +2888,81 @@ def create_course_schedule(
             "start_time": schedule.start_time.strftime("%H:%M:%S"),
             "end_time": schedule.end_time.strftime("%H:%M:%S"),
         }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/course-schedules")
+def list_course_schedules(
+    semester: Optional[str] = None,
+    teacher_id: Optional[int] = None,
+    class_id: Optional[int] = None,
+    classroom_id: Optional[int] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """按教师 / 班级 / 教室查询课程表，用于前端课表展示。
+
+    - semester: 学年学期，如 "2025-2026-1"
+    - teacher_id: 教师档案 ID（TeacherProfiles.id）
+    - class_id: 班级 ID（Classes.id），通过选课关系推导该班上哪些课
+    - classroom_id: 教室 ID（Classrooms.id）
+    """
+
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        q = (
+            session.query(CourseSchedule, TeachingAssignment, Course, TeacherProfile, Classroom)
+            .join(TeachingAssignment, CourseSchedule.teaching_id == TeachingAssignment.id)
+            .join(Course, TeachingAssignment.course_id == Course.id)
+            .join(TeacherProfile, TeachingAssignment.teacher_id == TeacherProfile.id)
+            .join(Classroom, CourseSchedule.classroom_id == Classroom.id)
+        )
+
+        if semester:
+            q = q.filter(TeachingAssignment.semester == semester)
+
+        if teacher_id is not None:
+            q = q.filter(TeachingAssignment.teacher_id == teacher_id)
+
+        if classroom_id is not None:
+            q = q.filter(CourseSchedule.classroom_id == classroom_id)
+
+        if class_id is not None:
+            # 通过选课记录+学生档案推导某个班级的课程安排
+            q = (
+                q.join(Enrollment, Enrollment.course_id == Course.id)
+                .join(StudentProfile, Enrollment.student_id == StudentProfile.id)
+                .filter(StudentProfile.class_id == class_id, Enrollment.is_deleted == False)
+            )
+
+        rows = q.distinct(CourseSchedule.id).all()
+
+        items = []
+        for cs, ta, course, teacher, room in rows:
+            items.append(
+                {
+                    "id": cs.id,
+                    "day_of_week": cs.day_of_week,
+                    "start_time": cs.start_time.strftime("%H:%M:%S"),
+                    "end_time": cs.end_time.strftime("%H:%M:%S"),
+                    "semester": ta.semester,
+                    "course": {
+                        "id": course.id,
+                        "course_name": course.course_name,
+                    },
+                    "teacher": {
+                        "id": teacher.id,
+                        "full_name": teacher.full_name,
+                    },
+                    "classroom": {
+                        "id": room.id,
+                        "name": room.name,
+                    },
+                }
+            )
+
+        return items
     finally:
         session.close()
 

@@ -54,7 +54,8 @@ CREATE TABLE `Courses` (
   `description` TEXT,
   `department` VARCHAR(100),
   `prerequisites` TEXT,
-  `is_deleted` BOOLEAN NOT NULL DEFAULT 0
+  `is_deleted` BOOLEAN NOT NULL DEFAULT 0,
+  `grade_approved` BOOLEAN NOT NULL DEFAULT 0
 );
 
 CREATE TABLE `Classrooms` (

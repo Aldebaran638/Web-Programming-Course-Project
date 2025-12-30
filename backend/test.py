@@ -83,6 +83,8 @@ class Course(Base):
     department = Column(String(100))
     prerequisites = Column(Text)
     is_deleted = Column(Integer, default=0)
+    # 是否已通过教学管理端的成绩审核
+    grade_approved = Column(Boolean, default=False, nullable=False)
     teaching_assignments = relationship("TeachingAssignment", back_populates="course")
 
 class TeachingAssignment(Base):
@@ -3239,6 +3241,31 @@ def admin_create_course(payload: Dict[str, Any], current_user: CurrentUser = Dep
     if not all([course_code, course_name, credits is not None]):
         raise HTTPException(status_code=400, detail="course_code, course_name, credits 为必填字段")
 
+    grade_items = payload.get("grade_items") or []
+    if not isinstance(grade_items, list) or not grade_items:
+        raise HTTPException(status_code=400, detail="grade_items（成绩组成项）为必填且必须为非空数组")
+
+    try:
+        parsed_items = []
+        total_weight = 0.0
+        for item in grade_items:
+            name = (item.get("item_name") or "").strip()
+            weight = item.get("weight")
+            if not name or weight is None:
+                raise HTTPException(status_code=400, detail="每个成绩组成项都必须包含 item_name 和 weight")
+            try:
+                w_val = float(weight)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="成绩组成项的 weight 必须为数字")
+            parsed_items.append({"item_name": name, "weight": w_val, "description": (item.get("description") or "").strip() or None})
+            total_weight += w_val
+
+        if abs(total_weight - 1.0) > 1e-6:
+            raise HTTPException(status_code=400, detail="所有成绩组成项的权重之和必须等于 1")
+    except HTTPException:
+        # 向上抛出业务校验错误
+        raise
+
     session = SessionLocal()
     try:
         if (
@@ -3256,8 +3283,22 @@ def admin_create_course(payload: Dict[str, Any], current_user: CurrentUser = Dep
             department=payload.get("department"),
             prerequisites=payload.get("prerequisites"),
             is_deleted=0,
+            grade_approved=False,
         )
         session.add(c)
+        session.flush()
+
+        # 创建课程的成绩组成项（不绑定具体作业，仅作为总评组成）
+        for item in parsed_items:
+            gi = GradeItem(
+                course_id=c.id,
+                item_name=item["item_name"],
+                weight=item["weight"],
+                description=item["description"],
+                is_deleted=False,
+            )
+            session.add(gi)
+
         session.commit()
         session.refresh(c)
         return {
@@ -3743,32 +3784,49 @@ def list_pending_review(current_user: CurrentUser = Depends(get_current_user)):
     _require_edu_admin(current_user)
     session = SessionLocal()
     try:
-        # 查找存在未发布成绩的课程
+        # 查找存在成绩记录的课程（不论是否已发布），用于审核列表
         rows = (
-            session.query(Course.id, Course.course_name)
+            session.query(Course)
             .join(Enrollment, Enrollment.course_id == Course.id)
             .join(Grade, Grade.enrollment_id == Enrollment.id)
-            .filter(Course.is_deleted == 0, Grade.is_deleted == False, Grade.status != "published")
+            .filter(Course.is_deleted == 0, Grade.is_deleted == False)
             .distinct()
             .all()
         )
 
         results = []
-        for course_id, course_name in rows:
-            # 计算优秀率
-            scores = [
-                float(g.score)
-                for g in (
-                    session.query(Grade)
-                    .join(Enrollment, Grade.enrollment_id == Enrollment.id)
-                    .filter(
-                        Enrollment.course_id == course_id,
-                        Grade.is_deleted == False,
-                        Grade.score != None,
-                    )
-                    .all()
+        for course in rows:
+            course_id = course.id
+
+            # 成绩组成项与选课情况
+            grade_items = (
+                session.query(GradeItem)
+                .filter(GradeItem.course_id == course_id, GradeItem.is_deleted == False)
+                .all()
+            )
+            enrollments = (
+                session.query(Enrollment)
+                .filter(Enrollment.course_id == course_id, Enrollment.is_deleted == False)
+                .all()
+            )
+
+            expected_count = len(grade_items) * len(enrollments)
+            grades = (
+                session.query(Grade)
+                .join(Enrollment, Grade.enrollment_id == Enrollment.id)
+                .filter(
+                    Enrollment.course_id == course_id,
+                    Grade.grade_item_id.in_([gi.id for gi in grade_items]) if grade_items else True,
+                    Grade.is_deleted == False,
                 )
-            ]
+                .all()
+            )
+            graded_count = sum(1 for g in grades if g.score is not None)
+
+            is_complete = expected_count > 0 and graded_count == expected_count
+
+            # 计算优秀率，仅用于预警展示
+            scores = [float(g.score) for g in grades if g.score is not None]
             warnings = []
             if scores:
                 total = len(scores)
@@ -3782,12 +3840,26 @@ def list_pending_review(current_user: CurrentUser = Depends(get_current_user)):
                         }
                     )
 
+            # 根据完成度与是否已审核决定状态
+            if not is_complete:
+                status = "not_ready"
+            else:
+                status = "approved" if course.grade_approved else "pending_review"
+
             results.append(
                 {
                     "course_id": course_id,
-                    "course_name": course_name,
-                    "status": "pending_review",
+                    "course_name": course.course_name,
+                    "course_code": course.course_code,
+                    "status": status,
                     "warnings": warnings,
+                    "grade_stats": {
+                        "grade_items": len(grade_items),
+                        "students": len(enrollments),
+                        "graded_count": graded_count,
+                        "expected_count": expected_count,
+                        "completion_rate": (graded_count / expected_count) if expected_count else 0,
+                    },
                 }
             )
 
@@ -3819,13 +3891,68 @@ def publish_grades(payload: Dict[str, Any], current_user: CurrentUser = Depends(
         session.close()
 
 
+@app.get("/api/v1/grades/publish-list")
+def list_publishable_courses(current_user: CurrentUser = Depends(get_current_user)):
+    """获取可在成绩发布页展示的课程列表。
+
+    只返回已通过教学管理端审核的课程（Course.grade_approved = True），
+    并根据成绩是否全部发布给出 `approved` 或 `published` 状态。
+    """
+
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        courses = (
+            session.query(Course)
+            .filter(Course.is_deleted == 0, Course.grade_approved == True)
+            .all()
+        )
+
+        results = []
+        for course in courses:
+            course_id = course.id
+
+            # 查找该课程涉及的所有成绩记录
+            grades = (
+                session.query(Grade)
+                .join(Enrollment, Grade.enrollment_id == Enrollment.id)
+                .filter(Enrollment.course_id == course_id, Grade.is_deleted == False)
+                .all()
+            )
+
+            if not grades:
+                # 已审核但暂无成绩，视为未发布
+                status = "approved"
+            else:
+                # 若所有成绩均为 published，则状态为已发布
+                all_published = all(g.status == "published" for g in grades)
+                status = "published" if all_published else "approved"
+
+            results.append(
+                {
+                    "course_id": course_id,
+                    "course_code": course.course_code,
+                    "course_name": course.course_name,
+                    # 这里暂不区分学期，使用占位值或由前端按需展示
+                    "semester": "",
+                    "status": status,
+                    "reviewed_at": None,
+                    "reviewer": None,
+                }
+            )
+
+        return results
+    finally:
+        session.close()
+
+
 @app.post("/api/v1/grades/approve")
 def approve_course_grades(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """教学管理员审核通过单门课程的成绩。
 
-    说明：目前审核通过不会直接更改成绩状态，真正的状态流转仍由
-    `/api/v1/grades/publish` 负责。该接口主要用于前端标记“已审核”，
-    并做基础校验，避免 405/404 等错误。
+    只有当该课程所有学生的所有成绩组成项都已评分完成时，
+    才允许通过审核。审核通过会在课程上打上 `grade_approved`
+    标记，供后续成绩发布模块使用。
     """
 
     _require_edu_admin(current_user)
@@ -3844,21 +3971,42 @@ def approve_course_grades(payload: Dict[str, Any], current_user: CurrentUser = D
         if not course:
             raise HTTPException(status_code=404, detail="课程不存在或已删除")
 
-        has_pending = (
+        # 计算该课程成绩组成项的完成情况
+        grade_items = (
+            session.query(GradeItem)
+            .filter(GradeItem.course_id == course_id, GradeItem.is_deleted == False)
+            .all()
+        )
+        enrollments = (
+            session.query(Enrollment)
+            .filter(Enrollment.course_id == course_id, Enrollment.is_deleted == False)
+            .all()
+        )
+
+        if not grade_items:
+            raise HTTPException(status_code=400, detail="该课程尚未配置成绩组成项，无法审核")
+        if not enrollments:
+            raise HTTPException(status_code=400, detail="该课程当前无选课学生，无法审核")
+
+        expected_count = len(grade_items) * len(enrollments)
+        grades = (
             session.query(Grade)
             .join(Enrollment, Grade.enrollment_id == Enrollment.id)
             .filter(
                 Enrollment.course_id == course_id,
+                Grade.grade_item_id.in_([gi.id for gi in grade_items]),
                 Grade.is_deleted == False,
-                Grade.status != "published",
             )
-            .first()
+            .all()
         )
+        graded_count = sum(1 for g in grades if g.score is not None)
 
-        if not has_pending:
-            return {"message": "该课程当前没有待审核的成绩"}
+        if expected_count == 0 or graded_count < expected_count:
+            raise HTTPException(status_code=400, detail="仍有学生的成绩组成项未评分完成，无法审核通过")
 
-        # 这里暂不修改成绩状态，仅作为“已审核”动作的确认。
+        course.grade_approved = True
+        session.commit()
+
         return {"message": "课程成绩已审核通过，可在发布页进行发布。"}
     finally:
         session.close()
@@ -3866,7 +4014,11 @@ def approve_course_grades(payload: Dict[str, Any], current_user: CurrentUser = D
 
 @app.post("/api/v1/grades/batch-approve")
 def batch_approve_course_grades(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
-    """教学管理员批量审核通过多门课程的成绩。"""
+    """教学管理员批量审核通过多门课程的成绩。
+
+    仅当每门课程所有学生的所有成绩组成项均已评分完成时
+    才会被标记为已审核。
+    """
 
     _require_edu_admin(current_user)
 
@@ -3874,7 +4026,6 @@ def batch_approve_course_grades(payload: Dict[str, Any], current_user: CurrentUs
     if not isinstance(course_ids, list):
         raise HTTPException(status_code=400, detail="course_ids 必须为数组")
 
-    # 仅统计基础结果信息，避免引入复杂状态流转逻辑
     session = SessionLocal()
     try:
         approved = 0
@@ -3893,24 +4044,45 @@ def batch_approve_course_grades(payload: Dict[str, Any], current_user: CurrentUs
                 skipped += 1
                 continue
 
-            has_pending = (
+            grade_items = (
+                session.query(GradeItem)
+                .filter(GradeItem.course_id == cid, GradeItem.is_deleted == False)
+                .all()
+            )
+            enrollments = (
+                session.query(Enrollment)
+                .filter(Enrollment.course_id == cid, Enrollment.is_deleted == False)
+                .all()
+            )
+
+            if not grade_items or not enrollments:
+                skipped += 1
+                continue
+
+            expected_count = len(grade_items) * len(enrollments)
+            grades = (
                 session.query(Grade)
                 .join(Enrollment, Grade.enrollment_id == Enrollment.id)
                 .filter(
                     Enrollment.course_id == cid,
+                    Grade.grade_item_id.in_([gi.id for gi in grade_items]),
                     Grade.is_deleted == False,
-                    Grade.status != "published",
                 )
-                .first()
+                .all()
             )
+            graded_count = sum(1 for g in grades if g.score is not None)
 
-            if has_pending:
-                approved += 1
-            else:
+            if expected_count == 0 or graded_count < expected_count:
                 skipped += 1
+                continue
+
+            course.grade_approved = True
+            approved += 1
+
+        session.commit()
 
         return {
-            "message": f"本次请求中 {approved} 门课程标记为已审核，通过检查但不修改成绩状态。",
+            "message": f"本次请求中 {approved} 门课程成绩已审核通过，{skipped} 门课程因成绩未录满而被跳过。",
             "approved": approved,
             "skipped": skipped,
         }
@@ -3960,8 +4132,10 @@ def reject_course_grades(payload: Dict[str, Any], current_user: CurrentUser = De
         if not has_pending:
             return {"message": "该课程当前没有可退回的成绩"}
 
-        # 目前不修改成绩，仅返回确认信息；如后续需要
-        # 可在这里增加具体的退回状态记录或日志。
+        # 退回后视为未通过审核
+        course.grade_approved = False
+        session.commit()
+
         return {"message": "课程成绩已退回修改，请通知授课教师处理。", "reason": reason}
     finally:
         session.close()
@@ -4011,12 +4185,15 @@ def batch_reject_course_grades(payload: Dict[str, Any], current_user: CurrentUse
             )
 
             if has_pending:
+                course.grade_approved = False
                 rejected += 1
             else:
                 skipped += 1
 
+        session.commit()
+
         return {
-            "message": f"本次请求中 {rejected} 门课程的成绩被标记为已退回，未对成绩做直接修改。",
+            "message": f"本次请求中 {rejected} 门课程的成绩已退回修改，{skipped} 门课程被跳过。",
             "rejected": rejected,
             "skipped": skipped,
             "reason": reason,

@@ -2473,9 +2473,25 @@ class CourseManager {
                     <label for="course-prerequisites">先修要求</label>
                     <input type="text" id="course-prerequisites" name="prerequisites" placeholder="例如：CS101, MA201">
                 </div>
+
+                <div class="form-group">
+                    <label>成绩组成项（必填，权重之和需为 1）</label>
+                    <div id="grade-items-container"></div>
+                    <button type="button" class="btn btn-sm btn-outline" id="add-grade-item-btn">
+                        <i class="fas fa-plus"></i> 添加组成项
+                    </button>
+                    <div style="font-size: 12px; color: #6c757d; margin-top: 5px;">
+                        例如：平时成绩 0.3，期中考试 0.3，期末考试 0.4
+                    </div>
+                </div>
                 
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">保存</button>
+
+                // 初始化默认的成绩组成项
+                this.initGradeItemsSection();
+        
+                document.getElementById('add-course-form')?.addEventListener('submit', async (e) => {
                     <button type="button" class="btn btn-outline" onclick="app.closeAllModals()">取消</button>
                 </div>
             </form>
@@ -2498,6 +2514,36 @@ class CourseManager {
         if (data.credits) {
             data.credits = parseFloat(data.credits);
         }
+
+        // 收集成绩组成项
+        const gradeItems = [];
+        document.querySelectorAll('#grade-items-container .grade-item-row').forEach(row => {
+            const nameInput = row.querySelector('.grade-item-name');
+            const weightInput = row.querySelector('.grade-item-weight');
+            const itemName = nameInput.value.trim();
+            const weightStr = weightInput.value.trim();
+            if (!itemName && !weightStr) {
+                return;
+            }
+            const weight = parseFloat(weightStr);
+            if (!itemName || isNaN(weight)) {
+                throw new Error('请完整填写每个成绩组成项的名称和权重');
+            }
+            gradeItems.push({ item_name: itemName, weight: weight });
+        });
+
+        if (gradeItems.length === 0) {
+            this.app.showError('请至少配置一个成绩组成项');
+            return;
+        }
+
+        const totalWeight = gradeItems.reduce((sum, item) => sum + item.weight, 0);
+        if (Math.abs(totalWeight - 1) > 1e-6) {
+            this.app.showError('所有成绩组成项的权重之和必须等于 1');
+            return;
+        }
+
+        data.grade_items = gradeItems;
         
         try {
             const result = await this.app.fetchWithAuth('/courses', {
@@ -2511,6 +2557,46 @@ class CourseManager {
         } catch (error) {
             this.app.showError('创建失败: ' + error.message);
         }
+    }
+
+    initGradeItemsSection() {
+        const container = document.getElementById('grade-items-container');
+        if (!container) return;
+
+        const defaultItems = [
+            { name: '平时成绩', weight: 0.3 },
+            { name: '期中考试', weight: 0.3 },
+            { name: '期末考试', weight: 0.4 },
+        ];
+
+        defaultItems.forEach(item => this.addGradeItemRow(item.name, item.weight));
+
+        document.getElementById('add-grade-item-btn')?.addEventListener('click', () => {
+            this.addGradeItemRow('', '');
+        });
+    }
+
+    addGradeItemRow(name, weight) {
+        const container = document.getElementById('grade-items-container');
+        if (!container) return;
+
+        const row = document.createElement('div');
+        row.className = 'grade-item-row form-row';
+        row.innerHTML = `
+            <div class="form-group">
+                <input type="text" class="grade-item-name" placeholder="组成项名称，如 平时成绩" value="${name}">
+            </div>
+            <div class="form-group">
+                <input type="number" class="grade-item-weight" step="0.01" min="0" max="1" placeholder="权重，例如 0.3" value="${weight}">
+            </div>
+            <button type="button" class="btn btn-sm btn-outline text-danger remove-grade-item">删除</button>
+        `;
+
+        container.appendChild(row);
+
+        row.querySelector('.remove-grade-item')?.addEventListener('click', () => {
+            row.remove();
+        });
     }
     
     async editCourse(courseId) {

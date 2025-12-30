@@ -122,7 +122,7 @@ class GradeReviewManager {
         this.toggleBatchActions();
         
         try {
-            // 后端暂未支持复杂筛选，这里先取全量结果再在前端过滤
+            // 后端返回所有有成绩的课程及其审核/完成度状态
             console.log('[GradeReviewManager] fetching pending review');
             const data = await this.app.fetchWithAuth(`/grades/pending-review`);
             console.log('[GradeReviewManager] pending review response', data);
@@ -161,13 +161,14 @@ class GradeReviewManager {
 
             // 渲染表格
             pageItems.forEach((review) => {
+                const canReview = review.status === 'pending_review';
                 const warningCount = review.warnings?.length || 0;
                 const warningBadges = this.renderWarningBadges(review.warnings);
                 
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>
-                        <input type="checkbox" class="course-checkbox" value="${review.course_id}">
+                        <input type="checkbox" class="course-checkbox" value="${review.course_id}" ${canReview ? '' : 'disabled'}>
                     </td>
                     <td>
                         <div style="font-weight: 600;">${review.course_name || '未知课程'}</div>
@@ -193,7 +194,7 @@ class GradeReviewManager {
                         <button class="btn btn-sm btn-outline" onclick="gradeReviewManager.viewDetails(${review.course_id})">
                             <i class="fas fa-eye"></i> 查看详情
                         </button>
-                        <button class="btn btn-sm btn-success" onclick="gradeReviewManager.approveCourse(${review.course_id})">
+                        <button class="btn btn-sm btn-success" onclick="gradeReviewManager.approveCourse(${review.course_id})" ${canReview ? '' : 'disabled'}>
                             <i class="fas fa-check"></i> 审核通过
                         </button>
                     </td>
@@ -260,6 +261,7 @@ class GradeReviewManager {
             case 'pending_review': return 'status-warning';
             case 'approved': return 'status-success';
             case 'rejected': return 'status-danger';
+            case 'not_ready': return 'status-secondary';
             default: return 'status-secondary';
         }
     }
@@ -269,6 +271,7 @@ class GradeReviewManager {
             case 'pending_review': return '待审核';
             case 'approved': return '已审核';
             case 'rejected': return '已退回';
+            case 'not_ready': return '成绩未录满';
             default: return status;
         }
     }
@@ -804,8 +807,8 @@ class GradePublishManager {
         this.togglePublishBatchActions();
         
         try {
-            // 这里目前使用模拟数据，先取全量再前端筛选
-            const data = await this.getMockPublishData();
+            // 从后端获取所有已通过审核的课程成绩（可能已发布也可能未发布）
+            const data = await this.app.fetchWithAuth('/grades/publish-list');
 
             let filtered = Array.isArray(data) ? data.slice() : [];
             const search = (this.currentFilters.search || '').toLowerCase();
@@ -909,48 +912,7 @@ class GradePublishManager {
         }
     }
     
-    async getMockPublishData() {
-        // 模拟数据
-        return [
-            {
-                course_id: 1,
-                course_code: "CS101",
-                course_name: "计算机科学导论",
-                semester: "2025-2026-1",
-                status: "approved",
-                reviewed_at: "2025-12-20 10:30",
-                reviewer: "张老师"
-            },
-            {
-                course_id: 2,
-                course_code: "MA201",
-                course_name: "高等数学I",
-                semester: "2025-2026-1",
-                status: "pending_review",
-                reviewed_at: null,
-                reviewer: null
-            },
-            {
-                course_id: 3,
-                course_code: "PHY101",
-                course_name: "大学物理",
-                semester: "2025-2026-1",
-                status: "approved",
-                reviewed_at: "2025-12-21 14:20",
-                reviewer: "李老师"
-            },
-            {
-                course_id: 4,
-                course_code: "SE201",
-                course_name: "软件工程导论",
-                semester: "2025-2026-1",
-                status: "published",
-                reviewed_at: "2025-12-19 09:15",
-                reviewer: "王老师",
-                published_at: "2025-12-19 10:00"
-            }
-        ];
-    }
+    // 之前的 getMockPublishData 已废弃，改为从后端获取真实数据
     
     getPublishStatusClass(status) {
         switch(status) {

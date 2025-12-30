@@ -23,7 +23,19 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
     
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-        return await response.json();
+
+        // 对于无内容响应（如 204 No Content），直接返回 null，避免 JSON 解析错误
+        if (response.status === 204) {
+            return null;
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            return await response.json();
+        }
+
+        // 非 JSON 响应，返回 null，由调用方自行决定是否处理
+        return null;
     } catch (error) {
         console.error('API请求错误:', error);
         showMessage('网络错误，请稍后重试', 'error');
@@ -55,6 +67,11 @@ function enrollCourse(courseId, semester) {
     });
 }
 
+// 退课API
+function withdrawEnrollment(enrollmentId) {
+    return apiRequest(`/enrollments/${enrollmentId}`, 'DELETE');
+}
+
 // 我的课程API
 function getMyCourses(semester = '') {
     let endpoint = '/me/enrollments';
@@ -71,6 +88,41 @@ function getCourseTasks(enrollmentId, status = '') {
         endpoint += `?status=${status}`;
     }
     return apiRequest(endpoint);
+}
+
+// 作业/考试相关API
+function getEnrollmentAssignments(enrollmentId) {
+    return apiRequest(`/me/enrollments/${enrollmentId}/assignments`);
+}
+
+// 课程资料相关API
+function getEnrollmentMaterials(enrollmentId) {
+    return apiRequest(`/me/enrollments/${enrollmentId}/materials`);
+}
+
+async function submitAssignmentRequest(assignmentId, formData) {
+    const token = localStorage.getItem('token');
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/submit`, {
+            method: 'POST',
+            headers,
+            body: formData
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            return await response.json();
+        }
+        return null;
+    } catch (error) {
+        console.error('作业提交请求错误:', error);
+        showMessage('网络错误，请稍后重试', 'error');
+    }
 }
 
 // 成绩相关API

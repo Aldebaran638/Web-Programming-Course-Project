@@ -1,53 +1,106 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>课程学习 - 成绩管理教学平台</title>
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
     <div class="header">
-        <div class="logo">成绩管理系统</div>
-        <div class="nav">
-            <a href="index.html">首页</a>
-            <a href="course-browse.html">浏览课程</a>
-            <a href="my-courses.html">我的课程</a>
-            <a href="grades.html">成绩查询</a>
-            <button onclick="logout()" class="btn-logout">退出</button>
-        </div>
+      <div class="logo">成绩管理系统</div>
+      <div class="nav">
+        <a href="index.html">首页</a>
+        <a href="course-browse.html">浏览课程</a>
+        <a href="my-courses.html">我的课程</a>
+        <a href="grades.html">成绩查询</a>
+        <button onclick="logout()" class="btn-logout">退出</button>
+      </div>
     </div>
 
     <div class="container">
-        <h1 id="courseTitle">课程名称</h1>
-        <p id="courseInfo">授课教师：<span id="teacherName"></span> | 学期：<span id="courseSemester"></span></p>
-        
-        <div class="task-filter">
-            <button onclick="filterTasks('all')" class="filter-btn active" name="all">全部任务</button>
-            <button onclick="filterTasks('todo')" class="filter-btn" name="todo">待完成</button>
-            <button onclick="filterTasks('done')" class="filter-btn" name="done">已完成</button>
-        </div>
+      <h1 id="courseTitle">课程名称</h1>
+      <p id="courseInfo">
+        授课教师：<span id="teacherName"></span> | 学期：<span
+          id="courseSemester"
+        ></span>
+      </p>
 
-        <div class="task-list" id="taskList">
-            <!-- 学习任务列表 -->
-        </div>
+      <div class="task-filter">
+        <button
+          onclick="filterTasks('all')"
+          class="filter-btn active"
+          name="all"
+        >
+          全部任务
+        </button>
+        <button onclick="filterTasks('todo')" class="filter-btn" name="todo">
+          待完成
+        </button>
+        <button onclick="filterTasks('done')" class="filter-btn" name="done">
+          已完成
+        </button>
+      </div>
+
+      <div class="task-list" id="taskList">
+        <!-- 学习任务列表（资料类） -->
+      </div>
+
+      <h2>课程资料</h2>
+      <div class="material-list" id="materialList">
+        <!-- 课程资料列表 -->
+      </div>
+
+      <h2>作业与考试</h2>
+      <div class="task-list" id="assignmentList">
+        <!-- 作业与考试列表 -->
+      </div>
     </div>
 
     <div class="modal" id="taskModal">
-        <div class="modal-content">
-            <h2 id="taskTitle">任务标题</h2>
-            <div id="taskContent">
-                <!-- 任务内容 -->
-            </div>
-            <div class="modal-buttons">
-                <button onclick="markTaskComplete()" id="completeBtn">标记完成</button>
-                <button onclick="closeTaskModal()">关闭</button>
-            </div>
+      <div class="modal-content">
+        <h2 id="taskTitle">任务标题</h2>
+        <div id="taskContent">
+          <!-- 任务内容 -->
         </div>
+        <div class="modal-buttons">
+          <button onclick="markTaskComplete()" id="completeBtn">
+            标记完成
+          </button>
+          <button onclick="closeTaskModal()">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="assignmentModal">
+      <div class="modal-content">
+        <h2 id="assignmentTitle">作业/考试</h2>
+        <div id="assignmentInfo">
+          <!-- 作业详情 -->
+        </div>
+        <div class="form-group">
+          <label for="assignmentText">作业内容（可选）：</label>
+          <textarea
+            id="assignmentText"
+            rows="4"
+            placeholder="在此输入作业答案..."
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label for="assignmentFile">上传附件（可选）：</label>
+          <input type="file" id="assignmentFile" />
+        </div>
+        <div class="modal-buttons">
+          <button onclick="submitAssignment()" id="assignmentSubmitBtn">
+            提交
+          </button>
+          <button onclick="closeAssignmentModal()">关闭</button>
+        </div>
+      </div>
     </div>
 
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/main.js"></script>
-</body>
+  </body>
 </html>

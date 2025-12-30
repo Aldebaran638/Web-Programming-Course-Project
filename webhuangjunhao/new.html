@@ -48,6 +48,77 @@
         </section>
         <section id="courses" class="content-section">
           <div class="card-section">
+            <h2>创建新课程</h2>
+            <form id="createCourseForm">
+              <div class="form-group">
+                <label for="newCourseCode"
+                  >课程代码 <span class="required">*</span></label
+                >
+                <input
+                  type="text"
+                  id="newCourseCode"
+                  name="newCourseCode"
+                  placeholder="如 CS101"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="newCourseName"
+                  >课程名称 <span class="required">*</span></label
+                >
+                <input
+                  type="text"
+                  id="newCourseName"
+                  name="newCourseName"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="newCourseCredits"
+                  >学分 <span class="required">*</span></label
+                >
+                <input
+                  type="number"
+                  id="newCourseCredits"
+                  name="newCourseCredits"
+                  min="0"
+                  step="0.5"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="newCourseSemester"
+                  >学期 <span class="required">*</span></label
+                >
+                <input
+                  type="text"
+                  id="newCourseSemester"
+                  name="newCourseSemester"
+                  placeholder="如 2025-2026-1"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="newCoursePrerequisites">先修课程（可选）</label>
+                <textarea
+                  id="newCoursePrerequisites"
+                  name="newCoursePrerequisites"
+                  rows="2"
+                ></textarea>
+              </div>
+              <div class="form-group">
+                <label for="newCourseDescription">课程描述（可选）</label>
+                <textarea
+                  id="newCourseDescription"
+                  name="newCourseDescription"
+                  rows="3"
+                ></textarea>
+              </div>
+              <button type="submit" class="submit-btn">创建课程</button>
+            </form>
+            <div id="createCourseResult" class="result"></div>
+          </div>
+          <div class="card-section">
             <h2>授课列表</h2>
             <form id="teachingAssignmentsForm">
               <div class="form-group">
@@ -68,14 +139,20 @@
             <h2>上传课程资料</h2>
             <form id="materialUploadForm" enctype="multipart/form-data">
               <div class="form-group">
-                <label for="materialCourseId"
-                  >课程ID <span class="required">*</span></label
+                <label for="materialCourseSelect"
+                  >课程 <span class="required">*</span></label
                 >
+                <select
+                  id="materialCourseSelect"
+                  name="materialCourseSelect"
+                  required
+                >
+                  <option value="">请选择课程</option>
+                </select>
                 <input
-                  type="number"
+                  type="hidden"
                   id="materialCourseId"
                   name="materialCourseId"
-                  required
                 />
               </div>
               <div class="form-group">
@@ -122,6 +199,7 @@
               <button type="submit" class="submit-btn">上传资料</button>
             </form>
             <div id="materialUploadResult" class="result"></div>
+            <div id="materialCards" class="material-cards"></div>
           </div>
           <div class="card-section">
             <h2>更新课程配置</h2>

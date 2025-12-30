@@ -122,28 +122,45 @@ class GradeReviewManager {
         this.toggleBatchActions();
         
         try {
-            // 构建查询参数
-            const params = new URLSearchParams({
-                page: this.currentPage,
-                pageSize: this.pageSize,
-                ...this.currentFilters
-            });
-            
-            console.log('[GradeReviewManager] fetching pending review', params.toString());
-            const data = await this.app.fetchWithAuth(`/grades/pending-review?${params}`);
+            // 后端暂未支持复杂筛选，这里先取全量结果再在前端过滤
+            console.log('[GradeReviewManager] fetching pending review');
+            const data = await this.app.fetchWithAuth(`/grades/pending-review`);
             console.log('[GradeReviewManager] pending review response', data);
-            
-            this.totalItems = data.length;
-            this.totalPages = Math.ceil(this.totalItems / this.pageSize);
-            
-            if (!data || data.length === 0) {
+
+            // 前端根据搜索和预警筛选
+            let filtered = Array.isArray(data) ? data.slice() : [];
+            const search = (this.currentFilters.search || '').toLowerCase();
+            const warningFilter = this.currentFilters.warning || '';
+
+            if (search) {
+                filtered = filtered.filter(item => {
+                    const name = (item.course_name || '').toLowerCase();
+                    const code = (item.course_code || '').toLowerCase();
+                    return name.includes(search) || code.includes(search);
+                });
+            }
+
+            if (warningFilter === 'has_warning') {
+                filtered = filtered.filter(item => Array.isArray(item.warnings) && item.warnings.length > 0);
+            } else if (warningFilter === 'no_warning') {
+                filtered = filtered.filter(item => !item.warnings || item.warnings.length === 0);
+            }
+
+            this.totalItems = filtered.length;
+            this.totalPages = Math.ceil(this.totalItems / this.pageSize) || 1;
+
+            if (!filtered || filtered.length === 0) {
                 loading.style.display = 'none';
                 empty.style.display = 'block';
                 return;
             }
             
+            // 当前页切片
+            const startIndex = (this.currentPage - 1) * this.pageSize;
+            const pageItems = filtered.slice(startIndex, startIndex + this.pageSize);
+
             // 渲染表格
-            data.forEach((review, index) => {
+            pageItems.forEach((review) => {
                 const warningCount = review.warnings?.length || 0;
                 const warningBadges = this.renderWarningBadges(review.warnings);
                 
@@ -787,28 +804,45 @@ class GradePublishManager {
         this.togglePublishBatchActions();
         
         try {
-            // 构建查询参数
-            const params = new URLSearchParams({
-                page: this.currentPage,
-                pageSize: this.pageSize,
-                ...this.currentFilters
-            });
-            
-            // 这里应该调用获取可发布成绩列表的API
-            // 暂时使用模拟数据
+            // 这里目前使用模拟数据，先取全量再前端筛选
             const data = await this.getMockPublishData();
-            
-            this.totalItems = data.length;
-            this.totalPages = Math.ceil(this.totalItems / this.pageSize);
-            
-            if (!data || data.length === 0) {
+
+            let filtered = Array.isArray(data) ? data.slice() : [];
+            const search = (this.currentFilters.search || '').toLowerCase();
+            const semester = this.currentFilters.semester || '';
+            const status = this.currentFilters.status || '';
+
+            if (search) {
+                filtered = filtered.filter(item => {
+                    const name = (item.course_name || '').toLowerCase();
+                    const code = (item.course_code || '').toLowerCase();
+                    return name.includes(search) || code.includes(search);
+                });
+            }
+
+            if (semester) {
+                filtered = filtered.filter(item => item.semester === semester);
+            }
+
+            if (status) {
+                filtered = filtered.filter(item => item.status === status);
+            }
+
+            this.totalItems = filtered.length;
+            this.totalPages = Math.ceil(this.totalItems / this.pageSize) || 1;
+
+            if (!filtered || filtered.length === 0) {
                 loading.style.display = 'none';
                 empty.style.display = 'block';
                 return;
             }
             
+            // 当前页切片
+            const startIndex = (this.currentPage - 1) * this.pageSize;
+            const pageItems = filtered.slice(startIndex, startIndex + this.pageSize);
+
             // 渲染表格
-            data.forEach((item, index) => {
+            pageItems.forEach((item) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>
@@ -1011,8 +1045,11 @@ class GradePublishManager {
         document.querySelectorAll('.publish-checkbox').forEach(cb => {
             cb.checked = false;
         });
-        document.getElementById('select-all-publish').checked = false;
-        document.getElementById('select-all-publish').indeterminate = false;
+        const selectAll = document.getElementById('select-all-publish');
+        if (selectAll) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+        }
         this.togglePublishBatchActions();
     }
     
@@ -1038,18 +1075,10 @@ class GradePublishManager {
         const modal = document.getElementById('publish-confirm-modal');
         const title = document.getElementById('confirm-title');
         const text = document.getElementById('confirm-text');
-        console.log('[GradePublishManager] loadPublishList start');
-        
-        if (!loading || !empty || !tableBody) {
-            console.warn('[GradePublishManager] required DOM elements missing', {
-                hasLoading: !!loading,
-                hasEmpty: !!empty,
-                hasTableBody: !!tableBody
-            });
+
+        if (!modal || !title || !text || !this.pendingPublish) {
             return;
         }
-        
-        if (!this.pendingPublish) return;
         
         if (this.pendingPublish.type === 'single') {
             title.textContent = '发布单个课程成绩';
@@ -1058,7 +1087,7 @@ class GradePublishManager {
             title.textContent = '批量发布课程成绩';
             text.textContent = `确定要发布 ${this.pendingPublish.courseIds.length} 个课程的成绩吗？`;
         }
-        
+
         modal.style.display = 'block';
     }
     
@@ -1101,11 +1130,15 @@ class GradePublishManager {
 EduAdminApp.prototype.initGradeReviewEvents = function() {
     this.gradeReviewManager = new GradeReviewManager(this);
     this.gradeReviewManager.init();
+    // 供成绩审核页面中的内联 onclick 使用
+    window.gradeReviewManager = this.gradeReviewManager;
 };
 
 EduAdminApp.prototype.initGradePublishEvents = function() {
     this.gradePublishManager = new GradePublishManager(this);
     this.gradePublishManager.init();
+    // 供成绩发布页面中的内联 onclick 使用
+    window.gradePublishManager = this.gradePublishManager;
 };
 
 // 添加到全局

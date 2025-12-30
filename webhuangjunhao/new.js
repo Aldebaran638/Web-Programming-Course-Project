@@ -140,17 +140,20 @@ document.getElementById('submissionQueryForm').addEventListener('submit', async 
             }
             resultDiv.textContent = `共 ${data.length} 条提交记录：`;
             resultDiv.className = 'result success';
-            // 构建表格
+            // 构建表格：展示提交情况，并提供直接评分入口（只影响作业本身的分数）
             let html = '<table class="submission-table">';
-            html += '<tr><th>提交ID</th><th>学生ID</th><th>学生姓名</th><th>提交时间</th><th>状态</th><th>分数</th></tr>';
+            html += '<tr><th>提交ID</th><th>学生ID</th><th>学生姓名</th><th>提交时间</th><th>状态</th><th>当前分数</th><th>修改分数</th><th>操作</th></tr>';
             for (const item of data) {
+                const currentScore = (item.score !== undefined && item.score !== null) ? item.score : '-';
                 html += `<tr>` +
                     `<td>${item.submission_id}</td>` +
                     `<td>${item.student?.id ?? ''}</td>` +
                     `<td>${item.student?.full_name ?? ''}</td>` +
                     `<td>${item.submitted_at ? new Date(item.submitted_at).toLocaleString('zh-CN') : ''}</td>` +
                     `<td class="status-${item.status}">${item.status === 'graded' ? '已评分' : '待评分'}</td>` +
-                    `<td>${item.score !== undefined && item.score !== null ? item.score : '-'}</td>` +
+                    `<td>${currentScore}</td>` +
+                    `<td><input type="number" step="0.1" min="0" max="100" value="${item.score ?? ''}" id="submission-score-${item.submission_id}" class="score-input" /></td>` +
+                    `<td><button type="button" onclick="updateSubmissionScore(${item.submission_id})">保存</button></td>` +
                 `</tr>`;
             }
             html += '</table>';
@@ -160,6 +163,157 @@ document.getElementById('submissionQueryForm').addEventListener('submit', async 
             resultDiv.className = 'result error';
         }
     } catch (err) {
+        resultDiv.textContent = '网络错误，请稍后重试。';
+        resultDiv.className = 'result error';
+    }
+});
+
+
+// 修改单条作业提交的成绩（仅影响 AssignmentSubmissions，不影响课程总评）
+async function updateSubmissionScore(submissionId) {
+    const resultDiv = document.getElementById('submissionResult');
+    const input = document.getElementById(`submission-score-${submissionId}`);
+    if (!input) return;
+
+    const val = input.value.trim();
+    if (val === '') {
+        // 允许清空分数
+        var scorePayload = null;
+    } else {
+        const num = parseFloat(val);
+        if (isNaN(num)) {
+            resultDiv.textContent = '分数必须为数字。';
+            resultDiv.className = 'result error';
+            return;
+        }
+        var scorePayload = num;
+    }
+
+    resultDiv.textContent = '保存中...';
+    resultDiv.className = 'result';
+
+    try {
+        const resp = await fetch(`http://127.0.0.1:8000/api/v1/assignment-submissions/${submissionId}`, {
+            method: 'PUT',
+            headers: Object.assign({
+                'Content-Type': 'application/json'
+            }, getAuthHeaders()),
+            body: JSON.stringify({ score: scorePayload })
+        });
+
+        if (resp.ok) {
+            const data = await resp.json();
+            resultDiv.textContent = `作业成绩已更新，提交ID: ${data.submission_id}，分数: ${data.score ?? '-'}。`;
+            resultDiv.className = 'result success';
+            // 重新查询列表以刷新状态
+            const form = document.getElementById('submissionQueryForm');
+            if (form) {
+                form.dispatchEvent(new Event('submit'));
+            }
+        } else {
+            let msg = '保存失败，请稍后重试。';
+            try {
+                const err = await resp.json();
+                if (err && err.detail) msg = typeof err.detail === 'string' ? err.detail : (err.detail.error?.message || msg);
+            } catch (e) {}
+            resultDiv.textContent = msg;
+            resultDiv.className = 'result error';
+        }
+    } catch (error) {
+        resultDiv.textContent = '网络错误，请稍后重试。';
+        resultDiv.className = 'result error';
+    }
+}
+
+
+// 创建新课程
+document.getElementById('createCourseForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const courseCode = document.getElementById('newCourseCode').value.trim();
+    const courseName = document.getElementById('newCourseName').value.trim();
+    const credits = document.getElementById('newCourseCredits').value.trim();
+    const semester = document.getElementById('newCourseSemester').value.trim();
+    const prerequisites = document.getElementById('newCoursePrerequisites').value.trim();
+    const description = document.getElementById('newCourseDescription').value.trim();
+    const resultDiv = document.getElementById('createCourseResult');
+
+    resultDiv.textContent = '';
+    resultDiv.className = 'result';
+
+    if (!courseCode || !courseName || !credits || !semester) {
+        resultDiv.textContent = '请填写所有必填字段。';
+        resultDiv.className = 'result error';
+        return;
+    }
+
+    const creditsNum = parseFloat(credits);
+    if (isNaN(creditsNum)) {
+        resultDiv.textContent = '学分必须为数字。';
+        resultDiv.className = 'result error';
+        return;
+    }
+
+    resultDiv.textContent = '创建中...';
+    resultDiv.className = 'result';
+
+    const payload = {
+        course_code: courseCode,
+        course_name: courseName,
+        credits: creditsNum,
+        semester: semester,
+    };
+    if (prerequisites) payload.prerequisites = prerequisites;
+    if (description) payload.description = description;
+
+    try {
+        const resp = await fetch('http://127.0.0.1:8000/api/v1/courses', {
+            method: 'POST',
+            headers: Object.assign({
+                'Content-Type': 'application/json'
+            }, getAuthHeaders()),
+            body: JSON.stringify(payload)
+        });
+
+        if (resp.status === 201) {
+            const data = await resp.json();
+            const c = data.course;
+            const ta = data.teaching_assignment;
+            resultDiv.textContent = `课程创建成功！课程ID: ${c.id}, 课程代码: ${c.course_code}, 授课任务ID: ${ta.id}, 学期: ${ta.semester}`;
+            resultDiv.className = 'result success';
+            document.getElementById('createCourseForm').reset();
+
+            // 将新课程追加到“上传课程资料”的课程下拉框中
+            const materialSelect = document.getElementById('materialCourseSelect');
+            if (materialSelect) {
+                // 如果当前还没有任何课程选项，只保留占位选项
+                if (!materialSelect.querySelector(`option[value="${c.id}"]`)) {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = `${c.course_name || ''}（${c.course_code || ''}，${ta.semester}）`;
+                    materialSelect.appendChild(opt);
+                }
+                // 默认选中新课程并加载其资料列表
+                materialSelect.value = c.id;
+                loadCourseMaterials(c.id);
+            }
+
+            // 可选：自动刷新授课列表，便于老师立即看到新课程
+            const form = document.getElementById('teachingAssignmentsForm');
+            if (form) {
+                form.dispatchEvent(new Event('submit'));
+            }
+        } else {
+            let msg = '创建失败，请检查输入或稍后重试。';
+            try {
+                const err = await resp.json();
+                if (err && err.detail) {
+                    msg = typeof err.detail === 'string' ? err.detail : (err.detail.error?.message || msg);
+                }
+            } catch (e) {}
+            resultDiv.textContent = msg;
+            resultDiv.className = 'result error';
+        }
+    } catch (error) {
         resultDiv.textContent = '网络错误，请稍后重试。';
         resultDiv.className = 'result error';
     }
@@ -189,6 +343,11 @@ document.getElementById('teachingAssignmentsForm').addEventListener('submit', as
             if (!Array.isArray(data) || data.length === 0) {
                 resultDiv.textContent = '暂无授课任务。';
                 resultDiv.className = 'result';
+                // 若授课任务为空，清空资料上传下拉框
+                const materialSelect = document.getElementById('materialCourseSelect');
+                if (materialSelect) {
+                    materialSelect.innerHTML = '<option value="">暂无课程</option>';
+                }
                 return;
             }
             resultDiv.textContent = `共 ${data.length} 门课程：`;
@@ -207,6 +366,27 @@ document.getElementById('teachingAssignmentsForm').addEventListener('submit', as
             }
             html += '</table>';
             tableWrapper.innerHTML = html;
+
+            // 同步更新“上传课程资料”的课程下拉框
+            const materialSelect = document.getElementById('materialCourseSelect');
+            if (materialSelect) {
+                materialSelect.innerHTML = '<option value="">请选择课程</option>';
+                for (const item of data) {
+                    const c = item.course || {};
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = `${c.course_name || ''}（${c.course_code || ''}，${item.semester}）`;
+                    materialSelect.appendChild(opt);
+                }
+                // 若之前没有选中课程，则默认选中第一门并加载资料
+                if (!materialSelect.value && data[0]?.course?.id) {
+                    materialSelect.value = data[0].course.id;
+                    loadCourseMaterials(data[0].course.id);
+                } else if (materialSelect.value) {
+                    // 若已有选中课程，则刷新其资料列表
+                    loadCourseMaterials(materialSelect.value);
+                }
+            }
         } else {
             resultDiv.textContent = '查询失败，请稍后重试。';
             resultDiv.className = 'result error';
@@ -221,7 +401,8 @@ document.getElementById('teachingAssignmentsForm').addEventListener('submit', as
 // 上传课程资料
 document.getElementById('materialUploadForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const courseId = document.getElementById('materialCourseId').value.trim();
+    const courseSelect = document.getElementById('materialCourseSelect');
+    const courseId = courseSelect ? (courseSelect.value || '').trim() : document.getElementById('materialCourseId').value.trim();
     const materialType = document.getElementById('materialType').value;
     const title = document.getElementById('materialTitle').value.trim();
     const fileInput = document.getElementById('materialFile');
@@ -248,9 +429,18 @@ document.getElementById('materialUploadForm').addEventListener('submit', async f
         });
         if (resp.status === 201) {
             const data = await resp.json();
-            resultDiv.textContent = `资料上传成功！ID: ${data.id}, 路径: ${data.file_path_or_content}`;
+            resultDiv.textContent = `资料上传成功！名称: ${data.title}`;
             resultDiv.className = 'result success';
             document.getElementById('materialUploadForm').reset();
+            if (courseSelect) {
+                // 保持当前课程选择不变
+                courseSelect.value = courseId;
+            }
+
+            // 刷新资料卡片列表
+            if (courseId) {
+                loadCourseMaterials(courseId);
+            }
         } else {
             const err = await resp.json();
             resultDiv.textContent = err.detail?.error?.message || '上传失败，请检查输入或稍后重试。';
@@ -261,6 +451,168 @@ document.getElementById('materialUploadForm').addEventListener('submit', async f
         resultDiv.className = 'result error';
     }
 });
+
+// 当课程下拉框变更时，加载对应课程的资料列表
+const materialCourseSelectEl = document.getElementById('materialCourseSelect');
+if (materialCourseSelectEl) {
+    materialCourseSelectEl.addEventListener('change', function() {
+        const cid = this.value;
+        if (cid) {
+            loadCourseMaterials(cid);
+        } else {
+            const cardsContainer = document.getElementById('materialCards');
+            if (cardsContainer) cardsContainer.innerHTML = '';
+        }
+    });
+}
+
+
+// 加载某课程的资料列表并渲染为卡片
+async function loadCourseMaterials(courseId) {
+    const cardsContainer = document.getElementById('materialCards');
+    const resultDiv = document.getElementById('materialUploadResult');
+    if (!cardsContainer) return;
+    cardsContainer.innerHTML = '';
+    if (!courseId) return;
+
+    resultDiv.textContent = '加载资料列表中...';
+    resultDiv.className = 'result';
+
+    try {
+        const resp = await fetch(`http://127.0.0.1:8000/api/v1/courses/${courseId}/materials`, {
+            headers: getAuthHeaders()
+        });
+        if (!resp.ok) {
+            resultDiv.textContent = '加载资料列表失败，请稍后重试。';
+            resultDiv.className = 'result error';
+            return;
+        }
+        const list = await resp.json();
+        if (!Array.isArray(list) || list.length === 0) {
+            cardsContainer.innerHTML = '<p>当前课程暂无资料。</p>';
+            resultDiv.textContent = '';
+            resultDiv.className = 'result';
+            return;
+        }
+
+        const fragments = document.createDocumentFragment();
+        for (const item of list) {
+            const card = document.createElement('div');
+            card.className = 'material-card';
+
+            const title = document.createElement('h4');
+            title.textContent = item.title || '(未命名资料)';
+            card.appendChild(title);
+
+            const meta = document.createElement('p');
+            const uploader = item.uploader_name || '未知上传者';
+            const createdAt = item.created_at ? new Date(item.created_at).toLocaleString('zh-CN') : '';
+            let sizeText = '';
+            if (typeof item.file_size === 'number') {
+                const kb = item.file_size / 1024;
+                if (kb < 1024) {
+                    sizeText = `${kb.toFixed(1)} KB`;
+                } else {
+                    sizeText = `${(kb / 1024).toFixed(2)} MB`;
+                }
+            }
+            meta.textContent = `上传者：${uploader}  |  上传时间：${createdAt}  |  大小：${sizeText || '未知'}`;
+            card.appendChild(meta);
+
+            if (item.file_path_or_content) {
+                const link = document.createElement('a');
+                link.href = item.file_path_or_content;
+                link.textContent = '下载/查看';
+                link.target = '_blank';
+                card.appendChild(link);
+            }
+
+            const actions = document.createElement('div');
+            actions.className = 'material-actions';
+
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.textContent = '编辑';
+            editBtn.onclick = () => editMaterialTitle(item.id, item.title, courseId);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.textContent = '撤回';
+            deleteBtn.onclick = () => deleteMaterial(item.id, courseId);
+
+            actions.appendChild(editBtn);
+            actions.appendChild(deleteBtn);
+            card.appendChild(actions);
+
+            fragments.appendChild(card);
+        }
+
+        cardsContainer.appendChild(fragments);
+        resultDiv.textContent = '';
+        resultDiv.className = 'result';
+    } catch (error) {
+        resultDiv.textContent = '加载资料列表失败，请稍后重试。';
+        resultDiv.className = 'result error';
+    }
+}
+
+
+// 编辑资料标题
+async function editMaterialTitle(id, currentTitle, courseId) {
+    const newTitle = window.prompt('请输入新的资料标题：', currentTitle || '');
+    if (newTitle === null) return; // 取消
+    const trimmed = newTitle.trim();
+    if (!trimmed) {
+        alert('标题不能为空。');
+        return;
+    }
+
+    try {
+        const resp = await fetch(`http://127.0.0.1:8000/api/v1/course-materials/${id}`, {
+            method: 'PATCH',
+            headers: Object.assign({
+                'Content-Type': 'application/json'
+            }, getAuthHeaders()),
+            body: JSON.stringify({ title: trimmed })
+        });
+        if (resp.ok) {
+            loadCourseMaterials(courseId);
+        } else {
+            let msg = '编辑失败，请稍后重试。';
+            try {
+                const err = await resp.json();
+                if (err && err.detail) msg = typeof err.detail === 'string' ? err.detail : (err.detail.error?.message || msg);
+            } catch (e) {}
+            alert(msg);
+        }
+    } catch (error) {
+        alert('网络错误，请稍后重试。');
+    }
+}
+
+
+// 撤回资料
+async function deleteMaterial(id, courseId) {
+    if (!window.confirm('确定要撤回该资料吗？撤回后学生将无法再访问。')) return;
+    try {
+        const resp = await fetch(`http://127.0.0.1:8000/api/v1/course-materials/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        if (resp.ok || resp.status === 204) {
+            loadCourseMaterials(courseId);
+        } else {
+            let msg = '撤回失败，请稍后重试。';
+            try {
+                const err = await resp.json();
+                if (err && err.detail) msg = typeof err.detail === 'string' ? err.detail : (err.detail.error?.message || msg);
+            } catch (e) {}
+            alert(msg);
+        }
+    } catch (error) {
+        alert('网络错误，请稍后重试。');
+    }
+}
 
 
 // 更新课程配置

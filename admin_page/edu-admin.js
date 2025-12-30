@@ -1355,9 +1355,75 @@ class ClassManager {
         }
     }
     
-    editClass(classId) {
-        // TODO: 实现编辑班级功能
-        this.app.showAlert('编辑功能开发中...', 'info');
+    async editClass(classId) {
+        try {
+            const cls = await this.app.fetchWithAuth(`/classes/${classId}`);
+
+            const content = `
+                <form id="edit-class-form">
+                    <div class="form-group">
+                        <label for="edit-class-name">班级名称 *</label>
+                        <input type="text" id="edit-class-name" name="class_name" value="${cls.class_name || ''}" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit-class-department">所属院系</label>
+                            <select id="edit-class-department" name="department">
+                                <option value="">请选择院系</option>
+                                <option value="计算机系" ${cls.department === '计算机系' ? 'selected' : ''}>计算机系</option>
+                                <option value="软件工程系" ${cls.department === '软件工程系' ? 'selected' : ''}>软件工程系</option>
+                                <option value="数学系" ${cls.department === '数学系' ? 'selected' : ''}>数学系</option>
+                                <option value="物理系" ${cls.department === '物理系' ? 'selected' : ''}>物理系</option>
+                                <option value="外语系" ${cls.department === '外语系' ? 'selected' : ''}>外语系</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="edit-enrollment-year">入学年份</label>
+                            <input type="number" id="edit-enrollment-year" name="enrollment_year" min="2000" max="2030" value="${cls.enrollment_year || ''}">
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">保存修改</button>
+                        <button type="button" class="btn btn-outline" onclick="app.closeAllModals()">取消</button>
+                    </div>
+                </form>
+            `;
+
+            const modalId = this.app.showModal('编辑班级信息', content);
+
+            document.getElementById('edit-class-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.updateClass(classId, modalId);
+            });
+        } catch (error) {
+            this.app.showError('加载班级信息失败: ' + error.message);
+        }
+    }
+
+    async updateClass(classId, modalId) {
+        const form = document.getElementById('edit-class-form');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+
+        if (data.enrollment_year) {
+            data.enrollment_year = parseInt(data.enrollment_year, 10);
+        }
+
+        try {
+            await this.app.fetchWithAuth(`/classes/${classId}`, {
+                method: 'PUT',
+                body: JSON.stringify(data)
+            });
+
+            this.app.showSuccess('班级信息更新成功');
+            this.app.closeModal(modalId);
+            this.loadClasses();
+        } catch (error) {
+            this.app.showError('更新失败: ' + error.message);
+        }
     }
     
     async deleteClass(classId) {
@@ -1495,10 +1561,15 @@ class StudentManager {
             
             // 渲染表格
             data.items.forEach(student => {
-                const statusBadge = student.status === 'active' 
-                    ? '<span class="status-badge status-active">激活</span>'
-                    : '<span class="status-badge status-inactive">锁定</span>';
-                
+                const isActive = student.status === 'active';
+                const nextStatus = isActive ? 'locked' : 'active';
+                const statusBadge = `
+                    <span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}" 
+                          onclick="studentManager.toggleStatus(${student.id}, '${nextStatus}')">
+                        ${isActive ? '激活' : '锁定'}
+                    </span>
+                `;
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${student.username || '-'}</td>
@@ -1530,6 +1601,30 @@ class StudentManager {
                     </td>
                 </tr>
             `;
+        }
+    }
+
+    async toggleStatus(studentId, newStatus) {
+        if (!['active', 'locked'].includes(newStatus)) {
+            return;
+        }
+
+        const confirmText = newStatus === 'locked'
+            ? '确定要锁定该学生账号吗？'
+            : '确定要激活该学生账号吗？';
+        if (!confirm(confirmText)) {
+            return;
+        }
+
+        try {
+            await this.app.fetchWithAuth(`/students/${studentId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: newStatus })
+            });
+            this.app.showSuccess('学生状态更新成功');
+            this.loadStudents();
+        } catch (error) {
+            this.app.showError('更新状态失败: ' + error.message);
         }
     }
     
@@ -2189,9 +2284,9 @@ class CourseManager {
             this.showAddCourseModal();
         });
         
-        // 搜索输入
+        // 搜索输入（按课程名称模糊查询）
         document.getElementById('search-course')?.addEventListener('input', (e) => {
-            this.currentFilters.search = e.target.value || undefined;
+            this.currentFilters.course_name = e.target.value || undefined;
             this.currentPage = 1;
             this.loadCourses();
         });
@@ -3573,26 +3668,32 @@ EduAdminApp.prototype.initPageEvents = function(page) {
 EduAdminApp.prototype.initClassManagementEvents = function() {
     this.classManager = new ClassManager(this);
     this.classManager.init();
+    // 供表格中内联 onclick 使用
+    window.classManager = this.classManager;
 };
 
 EduAdminApp.prototype.initStudentManagementEvents = function() {
     this.studentManager = new StudentManager(this);
     this.studentManager.init();
+    window.studentManager = this.studentManager;
 };
 
 EduAdminApp.prototype.initTeacherManagementEvents = function() {
     this.teacherManager = new TeacherManager(this);
     this.teacherManager.init();
+    window.teacherManager = this.teacherManager;
 };
 
 EduAdminApp.prototype.initCourseManagementEvents = function() {
     this.courseManager = new CourseManager(this);
     this.courseManager.init();
+    window.courseManager = this.courseManager;
 };
 
 EduAdminApp.prototype.initClassroomManagementEvents = function() {
     this.classroomManager = new ClassroomManager(this);
     this.classroomManager.init();
+    window.classroomManager = this.classroomManager;
 };
 
 EduAdminApp.prototype.initTeachingScheduleEvents = function() {

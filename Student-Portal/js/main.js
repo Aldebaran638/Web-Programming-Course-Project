@@ -19,6 +19,7 @@ let semester = '2025-2026-1';
 let currentPage = 1;
 let totalPages = 1;
 let enrolledCourseIds = new Set(); // 存储已选课程ID
+let courseIdToEnrollmentId = new Map(); // 课程ID到选课记录ID的映射
 
 async function loadCourses() {
     const search = document.getElementById('searchInput')?.value || '';
@@ -28,14 +29,14 @@ async function loadCourses() {
         getCourses(currentPage, search),
         getMyCourses()
     ]);
-
-    myCourses.forEach(x => {
-        coursesResult.courses.push(x.course);
-    }); 
-
-    // 处理已选课程ID
+    
+    // 处理已选课程信息
     if (myCourses && Array.isArray(myCourses)) {
         enrolledCourseIds = new Set(myCourses.map(item => item.course.id));
+        courseIdToEnrollmentId = new Map(myCourses.map(item => [item.course.id, item.enrollment_id]));
+    } else {
+        enrolledCourseIds = new Set();
+        courseIdToEnrollmentId = new Map();
     }
     
     if (coursesResult && coursesResult.courses) {
@@ -121,15 +122,18 @@ function nextPage() {
 
 // 选课功能
 let selectedCourseId = null;
+let selectedAction = 'enroll'; // enroll 或 withdraw
 
 function showWithdrawModal(courseId, courseName) {
     selectedCourseId = courseId;
+    selectedAction = 'withdraw';
     document.getElementById('modalCourseName').textContent = `确定要取消选修《${courseName}》吗？`;
     document.getElementById('enrollModal').style.display = 'flex';
 }
 
 function showEnrollModal(courseId, courseName) {
     selectedCourseId = courseId;
+    selectedAction = 'enroll';
     document.getElementById('modalCourseName').textContent = `确定要选修《${courseName}》吗？`;
     document.getElementById('enrollModal').style.display = 'flex';
 }
@@ -140,11 +144,26 @@ function closeModal() {
 
 async function confirmEnroll() {
     try {
-        const result = await enrollCourse(selectedCourseId, semester);
-        if (result && result.id) {
-            showMessage('操作成功！', 'success');
+        if (selectedAction === 'withdraw') {
+            const enrollmentId = courseIdToEnrollmentId.get(selectedCourseId);
+            if (!enrollmentId) {
+                showMessage('未找到该课程的选课记录，无法退课', 'error');
+                return;
+            }
+
+            await withdrawEnrollment(enrollmentId);
+            showMessage('退课成功！', 'success');
             closeModal();
             loadCourses();
+        } else {
+            const result = await enrollCourse(selectedCourseId, semester);
+            if (result && result.id) {
+                showMessage('选课成功！', 'success');
+                closeModal();
+                loadCourses();
+            } else {
+                showMessage('选课失败', 'error');
+            }
         }
     } catch (error) {
         showMessage('操作失败', 'error');
@@ -169,6 +188,8 @@ function viewCourseDetail(enrollmentId) {
 let currentEnrollmentId = null;
 let currentTasks = [];
 let currentFilter = 'all';
+let currentAssignments = [];
+let currentAssignment = null;
 
 async function loadCourseDetail() {
     currentEnrollmentId = localStorage.getItem('currentEnrollmentId');
@@ -184,6 +205,8 @@ async function loadCourseDetail() {
     document.getElementById('courseSemester').textContent = '2025-2026-1';
     
     loadTasks();
+    loadMaterials();
+    loadAssignments();
 }
 
 async function loadTasks() {
@@ -194,6 +217,58 @@ async function loadTasks() {
         currentTasks = tasks;
         filterTasks(currentFilter);
     }
+}
+
+// 加载课程资料列表
+async function loadMaterials() {
+    if (!currentEnrollmentId) return;
+
+    const list = await getEnrollmentMaterials(currentEnrollmentId);
+    const container = document.getElementById('materialList');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!list || !Array.isArray(list) || list.length === 0) {
+        const p = document.createElement('p');
+        p.textContent = '该课程暂未发布资料。';
+        container.appendChild(p);
+        return;
+    }
+
+    list.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'material-item';
+
+        const title = document.createElement('h4');
+        title.textContent = item.title || '(未命名资料)';
+        card.appendChild(title);
+
+        const meta = document.createElement('p');
+        const uploader = item.uploader_name || '教师';
+        const createdAt = item.created_at ? new Date(item.created_at).toLocaleString('zh-CN') : '';
+        let sizeText = '';
+        if (typeof item.file_size === 'number') {
+            const kb = item.file_size / 1024;
+            if (kb < 1024) {
+                sizeText = `${kb.toFixed(1)} KB`;
+            } else {
+                sizeText = `${(kb / 1024).toFixed(2)} MB`;
+            }
+        }
+        meta.textContent = `上传者：${uploader}  |  上传时间：${createdAt}  |  大小：${sizeText || '未知'}`;
+        card.appendChild(meta);
+
+        if (item.file_path_or_content) {
+            const link = document.createElement('a');
+            link.href = item.file_path_or_content;
+            link.textContent = '下载/查看资料';
+            link.target = '_blank';
+            card.appendChild(link);
+        }
+
+        container.appendChild(card);
+    });
 }
 
 function filterTasks(status) {
@@ -263,6 +338,107 @@ function markTaskComplete() {
     showMessage('任务标记为完成', 'success');
     closeTaskModal();
     loadTasks();
+}
+
+// 作业与考试功能
+async function loadAssignments() {
+    if (!currentEnrollmentId) return;
+
+    const assignments = await getEnrollmentAssignments(currentEnrollmentId);
+    if (assignments && Array.isArray(assignments)) {
+        currentAssignments = assignments;
+        displayAssignments(assignments);
+    }
+}
+
+function displayAssignments(assignments) {
+    const list = document.getElementById('assignmentList');
+    if (!list) return;
+
+    list.innerHTML = '';
+
+    if (!assignments.length) {
+        list.innerHTML = '<p>当前课程暂无布置的作业或考试。</p>';
+        return;
+    }
+
+    assignments.forEach(a => {
+        const item = document.createElement('div');
+        item.className = 'task-item';
+
+        let statusText = '未提交';
+        if (a.status === 'submitted') statusText = '已提交，待评分';
+        if (a.status === 'graded') statusText = '已评分';
+
+        item.innerHTML = `
+            <div>
+                <h4>${a.title}</h4>
+                <p>类型：${a.type === 'exam' ? '考试' : '作业'}</p>
+                <p>截止时间：${a.deadline ? new Date(a.deadline).toLocaleString('zh-CN') : '无'}</p>
+            </div>
+            <span class="task-status status-${a.status}">${statusText}</span>
+        `;
+        item.onclick = () => showAssignmentModal(a);
+        list.appendChild(item);
+    });
+}
+
+function showAssignmentModal(assignment) {
+    currentAssignment = assignment;
+    document.getElementById('assignmentTitle').textContent = assignment.title;
+
+    let statusText = '未提交';
+    if (assignment.status === 'submitted') statusText = '已提交，待评分';
+    if (assignment.status === 'graded') statusText = '已评分';
+
+    const infoDiv = document.getElementById('assignmentInfo');
+    infoDiv.innerHTML = `
+        <p>类型：${assignment.type === 'exam' ? '考试' : '作业'}</p>
+        <p>截止时间：${assignment.deadline ? new Date(assignment.deadline).toLocaleString('zh-CN') : '无'}</p>
+        <p>当前状态：${statusText}</p>
+        <p>成绩：${assignment.score != null ? assignment.score : '-'}</p>
+    `;
+
+    // 清空上次输入
+    document.getElementById('assignmentText').value = '';
+    const fileInput = document.getElementById('assignmentFile');
+    if (fileInput) fileInput.value = '';
+
+    document.getElementById('assignmentModal').style.display = 'flex';
+}
+
+function closeAssignmentModal() {
+    document.getElementById('assignmentModal').style.display = 'none';
+}
+
+async function submitAssignment() {
+    if (!currentAssignment) return;
+
+    const text = document.getElementById('assignmentText').value.trim();
+    const fileInput = document.getElementById('assignmentFile');
+    const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+
+    if (!text && !file) {
+        showMessage('请填写作业内容或选择上传文件', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    if (text) {
+        formData.append('content', text);
+    }
+    if (file) {
+        formData.append('file', file);
+    }
+
+    const result = await submitAssignmentRequest(currentAssignment.assignment_id, formData);
+    if (result && result.submission_id) {
+        showMessage('作业提交成功', 'success');
+        closeAssignmentModal();
+        loadAssignments();
+    } else {
+        showMessage('作业提交失败，请稍后重试', 'error');
+    }
 }
 
 // 成绩页面功能
@@ -373,10 +549,51 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (path.includes('grades.html')) {
         loadGrades();
     } else if (path.includes('index.html')) {
-        // 加载待完成任务
-        // 这里可以添加加载待完成任务的代码
+        // 设置欢迎语中的学生姓名
+        try {
+            const userRaw = localStorage.getItem('user');
+            if (userRaw) {
+                const user = JSON.parse(userRaw);
+                if (user && user.username) {
+                    const nameSpan = document.getElementById('studentName');
+                    if (nameSpan) nameSpan.textContent = user.username;
+                }
+            }
+        } catch (e) {
+            // 忽略解析错误
+        }
+
+        // 加载首页展示的新课程列表
+        loadHomeCourses();
     }
 });
+
+// 首页：加载最新课程
+async function loadHomeCourses() {
+    const list = document.getElementById('homeCourseList');
+    if (!list) return;
+
+    const result = await getCourses(1, '');
+    list.innerHTML = '';
+
+    if (!result || !Array.isArray(result.courses) || result.courses.length === 0) {
+        list.innerHTML = '<p>暂时没有可选课程。</p>';
+        return;
+    }
+
+    // 只展示前几门课程
+    result.courses.slice(0, 4).forEach(course => {
+        const card = document.createElement('div');
+        card.className = 'course-card';
+        card.innerHTML = `
+            <h3>${course.course_name}</h3>
+            <p class="course-info">课程编号：${course.course_code}</p>
+            <p class="course-info">学分：${course.credits}</p>
+            <p class="course-info">院系：${course.department || '未指定'}</p>
+        `;
+        list.appendChild(card);
+    });
+}
 
 // 添加CSS样式
 const style = document.createElement('style');

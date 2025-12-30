@@ -71,7 +71,13 @@ function forgotPassword() {
 // 页面加载时检查登录状态
 document.addEventListener('DOMContentLoaded', function() {
     const user = checkLogin();
-    if (user && document.getElementById('studentName')) {
-        document.getElementById('studentName').textContent = "学生" + user.username;
+    if (user) {
+        // 更新页面上的用户姓名
+        const studentNameElements = document.querySelectorAll('#studentName, #sidebarStudentName');
+        studentNameElements.forEach(element => {
+            if (element) {
+                element.textContent = user.username;
+            }
+        });
     }
 });

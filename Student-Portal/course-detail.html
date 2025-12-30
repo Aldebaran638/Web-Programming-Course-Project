@@ -5,58 +5,118 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>课程学习 - 成绩管理教学平台</title>
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
   </head>
   <body>
-    <div class="header">
-      <div class="logo">成绩管理系统</div>
-      <div class="nav">
-        <a href="index.html">首页</a>
-        <a href="course-browse.html">浏览课程</a>
-        <a href="my-courses.html">我的课程</a>
-        <a href="grades.html">成绩查询</a>
-        <button onclick="logout()" class="btn-logout">退出</button>
-      </div>
+    <div class="edu-admin-container">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">
+            <i class="fas fa-graduation-cap"></i>
+            <h2>成绩管理系统</h2>
+          </div>
+        </div>
+
+        <div class="user-info">
+          <div class="avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <div class="user-details">
+            <h4 id="sidebarStudentName">学生</h4>
+            <div class="role-badge">学生</div>
+          </div>
+        </div>
+
+        <nav class="nav-menu">
+          <ul>
+            <li>
+              <a href="index.html">
+                <i class="fas fa-home"></i>
+                <span>首页</span>
+              </a>
+            </li>
+            <li>
+              <a href="course-browse.html">
+                <i class="fas fa-search"></i>
+                <span>浏览课程</span>
+              </a>
+            </li>
+            <li>
+              <a href="my-courses.html">
+                <i class="fas fa-book"></i>
+                <span>我的课程</span>
+              </a>
+            </li>
+            <li>
+              <a href="grades.html">
+                <i class="fas fa-chart-bar"></i>
+                <span>成绩查询</span>
+              </a>
+            </li>
+          </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button class="logout-btn" onclick="logout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>退出登录</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="content-header">
+          <div class="header-left">
+            <h1 id="courseTitle">课程名称</h1>
+            <div class="breadcrumb">
+              <span>我的课程</span>
+              <i class="fas fa-chevron-right"></i>
+              <span>课程学习</span>
+            </div>
+          </div>
+          <div class="header-right">
+            <div class="semester-select">
+              <select>
+                <option>2025-2026 第一学期</option>
+                <option>2025-2026 第二学期</option>
+              </select>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-area">
+          <div class="container">
+            <p id="courseInfo">
+              授课教师：<span id="teacherName"></span> | 学期：<span id="courseSemester"></span>
+            </p>
+
+            <div class="task-filter">
+              <button onclick="filterTasks('all')" class="filter-btn active" name="all">
+                全部任务
+              </button>
+              <button onclick="filterTasks('todo')" class="filter-btn" name="todo">
+                待完成
+              </button>
+              <button onclick="filterTasks('done')" class="filter-btn" name="done">
+                已完成
+              </button>
+            </div>
+
+            <div class="task-list" id="taskList">
+              <!-- 学习任务列表（资料类） -->
+            </div>
+
+
+            <h2>作业与考试</h2>
+            <div class="task-list" id="assignmentList">
+              <!-- 作业与考试列表 -->
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
 
-    <div class="container">
-      <h1 id="courseTitle">课程名称</h1>
-      <p id="courseInfo">
-        授课教师：<span id="teacherName"></span> | 学期：<span
-          id="courseSemester"
-        ></span>
-      </p>
-
-      <div class="task-filter">
-        <button
-          onclick="filterTasks('all')"
-          class="filter-btn active"
-          name="all"
-        >
-          全部任务
-        </button>
-        <button onclick="filterTasks('todo')" class="filter-btn" name="todo">
-          待完成
-        </button>
-        <button onclick="filterTasks('done')" class="filter-btn" name="done">
-          已完成
-        </button>
-      </div>
-
-      <div class="task-list" id="taskList">
-        <!-- 学习任务列表（资料类） -->
-      </div>
-
-      <h2>课程资料</h2>
-      <div class="material-list" id="materialList">
-        <!-- 课程资料列表 -->
-      </div>
-
-      <h2>作业与考试</h2>
-      <div class="task-list" id="assignmentList">
-        <!-- 作业与考试列表 -->
-      </div>
-    </div>
-
+    <!-- 原页面的模态框 -->
     <div class="modal" id="taskModal">
       <div class="modal-content">
         <h2 id="taskTitle">任务标题</h2>
@@ -80,11 +140,7 @@
         </div>
         <div class="form-group">
           <label for="assignmentText">作业内容（可选）：</label>
-          <textarea
-            id="assignmentText"
-            rows="4"
-            placeholder="在此输入作业答案..."
-          ></textarea>
+          <textarea id="assignmentText" rows="4" placeholder="在此输入作业答案..."></textarea>
         </div>
         <div class="form-group">
           <label for="assignmentFile">上传附件（可选）：</label>

@@ -40,7 +40,6 @@
 
         <nav class="sidebar-menu">
           <div class="menu-section">
-            <h3 class="section-title">系统管理</h3>
             <ul>
               <li class="active">
                 <a href="logs.html">
@@ -51,37 +50,13 @@
               </li>
             </ul>
           </div>
-
-          <div class="menu-section">
-            <h3 class="section-title">其他</h3>
-            <ul>
-              <li>
-                <a href="../aldebaran/page.html" target="_blank">
-                  <i class="fas fa-home"></i>
-                  <span>返回首页</span>
-                </a>
-              </li>
-              <li>
-                <a href="#" id="logout-btn">
-                  <i class="fas fa-sign-out-alt"></i>
-                  <span>退出登录</span>
-                </a>
-              </li>
-            </ul>
-          </div>
         </nav>
 
         <div class="sidebar-footer">
-          <div class="system-status">
-            <div class="status-item">
-              <span class="status-label">日志总数</span>
-              <span class="status-value" id="total-logs-sidebar">0</span>
-            </div>
-            <div class="status-item">
-              <span class="status-label">今日日志</span>
-              <span class="status-value" id="today-logs-sidebar">0</span>
-            </div>
-          </div>
+          <button id="logout-btn" class="logout-btn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>退出登录</span>
+          </button>
         </div>
       </aside>
 

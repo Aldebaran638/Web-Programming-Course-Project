@@ -10,6 +10,7 @@ body {
     background-color: #f8f9fa;
     color: #333;
     line-height: 1.6;
+    font-size: 14px;
 }
 
 /* 主容器 */
@@ -21,7 +22,7 @@ body {
 /* 侧边栏样式 */
 .sidebar {
     width: 260px;
-    background: linear-gradient(180deg, #1a3a8f 0%, #2a4ba0 100%);
+    background: #2c3e50;
     color: white;
     display: flex;
     flex-direction: column;
@@ -81,11 +82,9 @@ body {
 }
 
 .role-badge {
-    background: rgba(255, 255, 255, 0.2);
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    color: white;
+    font-size: 13px;
+    color: #95a5a6;
+    margin-top: 3px;
 }
 
 .nav-menu {
@@ -103,17 +102,15 @@ body {
     display: flex;
     align-items: center;
     gap: 15px;
-    border-left: 4px solid transparent;
+
 }
 
 .nav-menu li:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-left-color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .nav-menu li.active {
     background: rgba(255, 255, 255, 0.15);
-    border-left-color: white;
 }
 
 .nav-menu li i {
@@ -173,7 +170,7 @@ body {
 .header-left h1 {
     font-size: 24px;
     font-weight: 600;
-    color: #1a3a8f;
+    color: #2c3e50;
     margin-bottom: 5px;
 }
 
@@ -230,7 +227,7 @@ body {
 
 .semester-select select:focus {
     outline: none;
-    border-color: #1a3a8f;
+    border-color: #2c3e50;
 }
 
 /* 内容区域 */
@@ -261,7 +258,7 @@ body {
 .page-header h2 {
     font-size: 20px;
     font-weight: 600;
-    color: #1a3a8f;
+    color: #2c3e50;
 }
 
 .header-actions {
@@ -284,14 +281,14 @@ body {
 }
 
 .btn-primary {
-    background: #1a3a8f;
+    background: #2c3e50;
     color: white;
 }
 
 .btn-primary:hover {
-    background: #2a4ba0;
+    background: #1a252f;
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(26, 58, 143, 0.3);
+    box-shadow: 0 4px 10px rgba(44, 62, 80, 0.3);
 }
 
 .btn-secondary {
@@ -440,15 +437,15 @@ body {
 }
 
 .pagination button:hover:not(:disabled) {
-    background: #1a3a8f;
+    background: #2c3e50;
     color: white;
-    border-color: #1a3a8f;
+    border-color: #2c3e50;
 }
 
 .pagination button.active {
-    background: #1a3a8f;
+    background: #2c3e50;
     color: white;
-    border-color: #1a3a8f;
+    border-color: #2c3e50;
 }
 
 .pagination button:disabled {
@@ -492,25 +489,25 @@ body {
 }
 
 .stat-icon.students {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #667eea;
 }
 
 .stat-icon.teachers {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    background: #f5576c;
 }
 
 .stat-icon.classes {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    background: #4facfe;
 }
 
 .stat-icon.courses {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    background: #43e97b;
 }
 
 .stat-details h3 {
     font-size: 32px;
     font-weight: 700;
-    color: #1a3a8f;
+    color: #2c3e50;
     margin-bottom: 5px;
 }
 
@@ -566,7 +563,7 @@ body {
 .modal-header h3 {
     font-size: 18px;
     font-weight: 600;
-    color: #1a3a8f;
+    color: #2c3e50;
 }
 
 .close-btn {
@@ -614,8 +611,8 @@ body {
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: #1a3a8f;
-    box-shadow: 0 0 0 3px rgba(26, 58, 143, 0.1);
+    border-color: #2c3e50;
+    box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
 }
 
 .form-row {
@@ -735,8 +732,8 @@ body {
 .spinner {
     width: 40px;
     height: 40px;
-    border: 4px solid rgba(26, 58, 143, 0.1);
-    border-top-color: #1a3a8f;
+    border: 4px solid rgba(44, 62, 80, 0.1);
+    border-top-color: #2c3e50;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -846,7 +843,7 @@ body {
 
 .timetable-slot.booked {
     background: #e3f2fd;
-    border-left: 4px solid #1a3a8f;
+    border-left: 4px solid #2c3e50;
 }
 
 .slot-content {
@@ -855,7 +852,7 @@ body {
 
 .slot-course {
     font-weight: 600;
-    color: #1a3a8f;
+    color: #2c3e50;
     margin-bottom: 3px;
 }
 
@@ -898,7 +895,7 @@ body {
 }
 
 .file-upload:hover {
-    border-color: #1a3a8f;
+    border-color: #2c3e50;
 }
 
 .file-upload i {
@@ -944,7 +941,7 @@ body {
 .stat-info h3 {
     font-size: 24px;
     font-weight: 600;
-    color: #1a3a8f;
+    color: #2c3e50;
     margin-bottom: 5px;
 }
 
@@ -1263,7 +1260,6 @@ body {
 
 .publish-status.published .dot {
     background: #28a745;
-    animation: pulse 2s infinite;
 }
 
 @keyframes pulse {

@@ -187,8 +187,8 @@ class EduAdminApp {
                         <i class="fas fa-user-graduate"></i>
                     </div>
                     <div class="stat-details">
-                        <h3>${stats.students || '0'}</h3>
                         <p>学生总数</p>
+                        <h3>${stats.students || '0'}</h3>
                     </div>
                 </div>
                 
@@ -197,8 +197,8 @@ class EduAdminApp {
                         <i class="fas fa-chalkboard-teacher"></i>
                     </div>
                     <div class="stat-details">
-                        <h3>${stats.teachers || '0'}</h3>
                         <p>教师总数</p>
+                        <h3>${stats.teachers || '0'}</h3>
                     </div>
                 </div>
                 
@@ -207,8 +207,8 @@ class EduAdminApp {
                         <i class="fas fa-users"></i>
                     </div>
                     <div class="stat-details">
-                        <h3>${stats.classes || '0'}</h3>
                         <p>班级总数</p>
+                        <h3>${stats.classes || '0'}</h3>
                     </div>
                 </div>
                 
@@ -217,8 +217,8 @@ class EduAdminApp {
                         <i class="fas fa-book"></i>
                     </div>
                     <div class="stat-details">
-                        <h3>${stats.courses || '0'}</h3>
                         <p>课程总数</p>
+                        <h3>${stats.courses || '0'}</h3>
                     </div>
                 </div>
             </div>

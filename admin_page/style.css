@@ -6,10 +6,11 @@
 }
 
 body {
-    font-family: 'Inter', sans-serif;
-    background-color: #f5f7fa;
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    background-color: #f8f9fa;
     color: #333;
     line-height: 1.6;
+    font-size: 14px;
 }
 
 .sys-admin-container {
@@ -20,7 +21,7 @@ body {
 /* 侧边栏样式 */
 .sidebar {
     width: 260px;
-    background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%);
+    background: #2c3e50;
     color: white;
     display: flex;
     flex-direction: column;
@@ -37,6 +38,8 @@ body {
     display: flex;
     align-items: center;
     margin-bottom: 25px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 15px;
 }
 
 .logo i {
@@ -129,10 +132,8 @@ body {
     color: white;
 }
 
-.sidebar-menu a.active {
-    background: rgba(52, 152, 219, 0.2);
-    color: #3498db;
-    border-left: 3px solid #3498db;
+.sidebar-menu li.active {
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .sidebar-menu a i {
@@ -182,12 +183,32 @@ body {
 }
 
 .status-indicator.online {
-    background: #2ecc71;
+    background: #28a745;
 }
 
 .status-value {
     color: #ecf0f1;
     font-weight: 500;
+}
+
+.logout-btn {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: background 0.3s;
+    font-size: 15px;
+}
+
+.logout-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 /* 主内容区样式 */
@@ -209,12 +230,12 @@ body {
 
 .header-left h1 {
     font-size: 24px;
-    font-weight: 700;
+    font-weight: 600;
     color: #2c3e50;
 }
 
 .subtitle {
-    color: #7f8c8d;
+    color: #6c757d;
     font-size: 14px;
     margin-top: 5px;
 }
@@ -248,7 +269,7 @@ body {
 
 .search-box input:focus {
     outline: none;
-    border-color: #3498db;
+    border-color: #2c3e50;
 }
 
 .header-actions {
@@ -271,31 +292,31 @@ body {
 }
 
 .btn-primary {
-    background: #3498db;
-    color: white;
-}
-
-.btn-primary:hover {
-    background: #2980b9;
-}
-
-.btn-secondary {
     background: #2c3e50;
     color: white;
 }
 
-.btn-secondary:hover {
+.btn-primary:hover {
     background: #1a252f;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
 }
 
 .btn-outline {
     background: transparent;
-    color: #3498db;
-    border: 1px solid #3498db;
+    color: #2c3e50;
+    border: 1px solid #2c3e50;
 }
 
 .btn-outline:hover {
-    background: #3498db;
+    background: #2c3e50;
     color: white;
 }
 
@@ -308,14 +329,15 @@ body {
 
 /* 欢迎卡片 */
 .welcome-card {
-    background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
-    color: white;
-    border-radius: 12px;
+    background: white;
+    color: #333;
+    border-radius: 10px;
     padding: 30px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 30px;
+    border-left: 4px solid #2c3e50;
 }
 
 .welcome-content h2 {
@@ -324,13 +346,14 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
+    color: #2c3e50;
 }
 
 .welcome-content p {
     font-size: 15px;
     margin-bottom: 20px;
     max-width: 600px;
-    opacity: 0.9;
+    color: #6c757d;
 }
 
 .welcome-actions {
@@ -340,7 +363,8 @@ body {
 
 .welcome-illustration {
     font-size: 80px;
-    opacity: 0.2;
+    color: #2c3e50;
+    opacity: 0.3;
 }
 
 /* 仪表板区域 */
@@ -363,7 +387,7 @@ body {
 }
 
 .view-all {
-    color: #3498db;
+    color: #2c3e50;
     text-decoration: none;
     font-size: 14px;
     display: flex;
@@ -412,13 +436,13 @@ body {
 }
 
 .card-icon.log-audit {
-    background: rgba(52, 152, 219, 0.1);
-    color: #3498db;
+    background: rgba(44, 62, 80, 0.1);
+    color: #2c3e50;
 }
 
 .card-icon.backup {
-    background: rgba(46, 204, 113, 0.1);
-    color: #2ecc71;
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
 }
 
 .card-icon.system-health {
@@ -434,7 +458,7 @@ body {
 }
 
 .card-content p {
-    color: #7f8c8d;
+    color: #6c757d;
     font-size: 14px;
     margin-bottom: 20px;
     line-height: 1.5;
@@ -468,7 +492,7 @@ body {
 }
 
 .card-action {
-    color: #3498db;
+    color: #2c3e50;
     font-weight: 500;
     display: flex;
     align-items: center;
@@ -515,8 +539,8 @@ body {
 }
 
 .activity-icon.login {
-    background: rgba(52, 152, 219, 0.1);
-    color: #3498db;
+    background: rgba(44, 62, 80, 0.1);
+    color: #2c3e50;
 }
 
 .activity-icon.error {
@@ -525,8 +549,8 @@ body {
 }
 
 .activity-icon.backup {
-    background: rgba(46, 204, 113, 0.1);
-    color: #2ecc71;
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
 }
 
 .activity-icon.security {
@@ -546,7 +570,7 @@ body {
 
 .activity-desc {
     font-size: 13px;
-    color: #7f8c8d;
+    color: #6c757d;
 }
 
 .activity-time {
@@ -582,8 +606,8 @@ body {
 }
 
 .stat-icon.users {
-    background: rgba(52, 152, 219, 0.1);
-    color: #3498db;
+    background: rgba(44, 62, 80, 0.1);
+    color: #2c3e50;
 }
 
 .stat-icon.logs {
@@ -592,8 +616,8 @@ body {
 }
 
 .stat-icon.courses {
-    background: rgba(46, 204, 113, 0.1);
-    color: #2ecc71;
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
 }
 
 .stat-icon.security {
@@ -603,7 +627,7 @@ body {
 
 .stat-info h4 {
     font-size: 14px;
-    color: #7f8c8d;
+    color: #6c757d;
     margin-bottom: 5px;
 }
 
@@ -619,7 +643,7 @@ body {
 }
 
 .change-up {
-    color: #2ecc71;
+    color: #28a745;
 }
 
 .change-down {
@@ -637,7 +661,7 @@ body {
     background: white;
     border-top: 1px solid #eaeaea;
     text-align: center;
-    color: #7f8c8d;
+    color: #6c757d;
     font-size: 14px;
 }
 
@@ -646,7 +670,7 @@ body {
 }
 
 .footer-links a {
-    color: #3498db;
+    color: #2c3e50;
     text-decoration: none;
     margin: 0 5px;
 }
@@ -700,7 +724,7 @@ body {
     background: none;
     border: none;
     font-size: 28px;
-    color: #7f8c8d;
+    color: #6c757d;
     cursor: pointer;
     line-height: 1;
 }
@@ -753,13 +777,13 @@ body {
 }
 
 .status-badge.online {
-    background: rgba(46, 204, 113, 0.1);
-    color: #2ecc71;
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
 }
 
 .status-badge.healthy {
-    background: rgba(52, 152, 219, 0.1);
-    color: #3498db;
+    background: rgba(44, 62, 80, 0.1);
+    color: #2c3e50;
 }
 
 .status-badge.secure {
@@ -969,7 +993,7 @@ body {
 .filter-group input:focus,
 .filter-group select:focus {
     outline: none;
-    border-color: #3498db;
+    border-color: #2c3e50;
 }
 
 /* 统计卡片 */
@@ -984,13 +1008,13 @@ body {
 }
 
 .stat-card .stat-icon.total {
-    background: rgba(52, 152, 219, 0.1);
-    color: #3498db;
+    background: rgba(44, 62, 80, 0.1);
+    color: #2c3e50;
 }
 
 .stat-card .stat-icon.success {
-    background: rgba(46, 204, 113, 0.1);
-    color: #2ecc71;
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
 }
 
 .stat-card .stat-icon.failure {
@@ -1059,8 +1083,8 @@ body {
 }
 
 .pagination-controls button:hover:not(:disabled) {
-    border-color: #3498db;
-    color: #3498db;
+    border-color: #2c3e50;
+    color: #2c3e50;
 }
 
 .pagination-controls button:disabled {
@@ -1070,7 +1094,7 @@ body {
 
 .pagination-controls span {
     font-size: 14px;
-    color: #7f8c8d;
+    color: #6c757d;
 }
 
 /* 日志表格 */
@@ -1120,7 +1144,7 @@ body {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #3498db;
+    background: #2c3e50;
     color: white;
     display: flex;
     align-items: center;
@@ -1143,7 +1167,7 @@ body {
 .ip-address {
     font-family: monospace;
     font-size: 13px;
-    color: #7f8c8d;
+    color: #6c757d;
 }
 
 .action-badge {
@@ -1161,8 +1185,8 @@ body {
 }
 
 .status-badge.success {
-    background: rgba(46, 204, 113, 0.1);
-    color: #2ecc71;
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
 }
 
 .status-badge.failure {
@@ -1181,8 +1205,8 @@ body {
 }
 
 .status-badge.info {
-    background: rgba(52, 152, 219, 0.1);
-    color: #3498db;
+    background: rgba(44, 62, 80, 0.1);
+    color: #2c3e50;
 }
 
 .status-badge.unknown {
@@ -1209,8 +1233,8 @@ body {
 }
 
 .btn-icon:hover {
-    border-color: #3498db;
-    color: #3498db;
+    border-color: #2c3e50;
+    color: #2c3e50;
 }
 
 /* 加载状态 */
@@ -1224,7 +1248,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    color: #7f8c8d;
+    color: #6c757d;
 }
 
 /* 空状态 */
@@ -1298,7 +1322,7 @@ body {
 .detail-item label {
     font-size: 12px;
     text-transform: uppercase;
-    color: #7f8c8d;
+    color: #6c757d;
     margin-bottom: 5px;
     letter-spacing: 0.5px;
 }
@@ -1347,7 +1371,7 @@ body {
 
 .warning-message p {
     margin-bottom: 10px;
-    color: #7f8c8d;
+    color: #6c757d;
 }
 
 .warning-text {
@@ -1405,7 +1429,7 @@ body {
 }
 
 .message.success {
-    border-left: 4px solid #2ecc71;
+    border-left: 4px solid #28a745;
 }
 
 .message.error {
@@ -1413,7 +1437,7 @@ body {
 }
 
 .message.info {
-    border-left: 4px solid #3498db;
+    border-left: 4px solid #2c3e50;
 }
 
 .message i {
@@ -1421,7 +1445,7 @@ body {
 }
 
 .message.success i {
-    color: #2ecc71;
+    color: #28a745;
 }
 
 .message.error i {
@@ -1429,7 +1453,7 @@ body {
 }
 
 .message.info i {
-    color: #3498db;
+    color: #2c3e50;
 }
 
 /* 备份恢复页面新增样式 */
@@ -1469,13 +1493,13 @@ body {
 }
 
 .backup-icon.full {
-    background: rgba(52, 152, 219, 0.1);
-    color: #3498db;
+    background: rgba(44, 62, 80, 0.1);
+    color: #2c3e50;
 }
 
 .backup-icon.incremental {
-    background: rgba(46, 204, 113, 0.1);
-    color: #2ecc71;
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
 }
 
 .backup-content h4 {
@@ -1486,7 +1510,7 @@ body {
 }
 
 .backup-content p {
-    color: #7f8c8d;
+    color: #6c757d;
     font-size: 14px;
     line-height: 1.6;
     margin-bottom: 20px;
@@ -1550,7 +1574,7 @@ body {
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #3498db, #2ecc71);
+    background: #2c3e50;
     transition: width 0.5s ease;
 }
 
@@ -1558,7 +1582,7 @@ body {
     display: flex;
     justify-content: space-between;
     font-size: 14px;
-    color: #7f8c8d;
+    color: #6c757d;
 }
 
 /* 恢复区域 */
@@ -1589,7 +1613,7 @@ body {
 
 .restore-warning p {
     margin: 0;
-    color: #7f8c8d;
+    color: #6c757d;
     line-height: 1.6;
 }
 
@@ -1626,7 +1650,7 @@ body {
 .form-group input:focus,
 .form-group select:focus {
     outline: none;
-    border-color: #3498db;
+    border-color: #2c3e50;
 }
 
 .confirmation-box {
@@ -1720,13 +1744,13 @@ body {
 }
 
 .type-badge.full {
-    background: rgba(52, 152, 219, 0.1);
-    color: #3498db;
+    background: rgba(44, 62, 80, 0.1);
+    color: #2c3e50;
 }
 
 .type-badge.incremental {
-    background: rgba(46, 204, 113, 0.1);
-    color: #2ecc71;
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
 }
 
 .backup-note {
@@ -1787,8 +1811,8 @@ body {
     width: 60px;
     height: 60px;
     border-radius: 12px;
-    background: rgba(52, 152, 219, 0.1);
-    color: #3498db;
+    background: rgba(44, 62, 80, 0.1);
+    color: #2c3e50;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1804,7 +1828,7 @@ body {
     display: flex;
     justify-content: space-between;
     font-size: 14px;
-    color: #7f8c8d;
+    color: #6c757d;
     margin-top: 10px;
 }
 
@@ -1887,14 +1911,14 @@ body {
     border-bottom: 3px solid transparent;
     font-size: 14px;
     font-weight: 500;
-    color: #7f8c8d;
+    color: #6c757d;
     cursor: pointer;
     transition: all 0.3s;
 }
 
 .tab-btn.active {
-    color: #3498db;
-    border-bottom-color: #3498db;
+    color: #2c3e50;
+    border-bottom-color: #2c3e50;
 }
 
 .tab-content {

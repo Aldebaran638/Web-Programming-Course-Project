@@ -58,26 +58,29 @@ function displayTodaySchedule(assignments) {
     if (!container) return;
     
     if (!assignments || assignments.length === 0) {
-        container.innerHTML = '<div class="empty-msg"><i class="fas fa-inbox"></i><p>今日暂无课程安排</p></div>';
+        container.innerHTML = '<div class="empty-msg"><i class="fas fa-inbox"></i><p>暂无授课课程</p></div>';
         return;
     }
     
-    // 取当天的课程（模拟，实际应该从课程表中获取）
-    const todayCourses = assignments.slice(0, 3);
+    // 显示本学期授课课程
+    const currentSemester = '2025-2026-1'; // 可以根据实际情况动态获取
+    const semesterCourses = assignments.filter(a => a.semester === currentSemester).slice(0, 5);
     
-    container.innerHTML = todayCourses.map((item, index) => {
-        const times = ['08:00-09:40', '10:00-11:40', '14:00-15:40'];
-        const locations = ['教A101', '教B203', '教C305'];
-        
+    if (semesterCourses.length === 0) {
+        container.innerHTML = '<div class="empty-msg"><i class="fas fa-inbox"></i><p>本学期暂无授课课程</p></div>';
+        return;
+    }
+    
+    container.innerHTML = semesterCourses.map((item) => {
         return `
-            <div class="schedule-item">
-                <div class="schedule-time">
-                    <i class="fas fa-clock"></i> ${times[index]}
-                </div>
-                <div class="schedule-details">
+            <div class="schedule-item" onclick="window.location.href='course-detail.html?id=${item.course.id}'" style="cursor:pointer;">
+                <div class="schedule-details" style="flex:1;">
                     <h4>${item.course.course_name}</h4>
-                    <p><i class="fas fa-map-marker-alt"></i> ${locations[index]}</p>
+                    <p><i class="fas fa-code"></i> ${item.course.course_code} &nbsp; <i class="fas fa-graduation-cap"></i> ${item.course.credits || 0} 学分</p>
                     <span class="schedule-badge">${item.semester}</span>
+                </div>
+                <div class="schedule-time">
+                    <i class="fas fa-chevron-right"></i>
                 </div>
             </div>
         `;
@@ -272,3 +275,18 @@ style.textContent = `
 }
 `;
 document.head.appendChild(style);
+
+// 导航到创建新课程
+function navigateToCreateCourse() {
+    // 跳转到课程管理页面，并传递参数指示需要自动弹出创建课程模态框
+    window.location.href = 'courses.html?action=create';
+}
+
+// 退出登录
+function logout() {
+    if (confirm('确定要退出登录吗？')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userInfo');
+        window.location.href = '../aldebaran/htmls/login.html';
+    }
+}

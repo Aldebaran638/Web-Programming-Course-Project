@@ -38,29 +38,14 @@
                 <li class="active"><a href="courses.html">
                     <div class="nav-accent"></div>
                     <i class="fas fa-book-open"></i>
-                    <span>我的课程</span>
-                </a></li>
-                <li><a href="assignments.html">
-                    <div class="nav-accent"></div>
-                    <i class="fas fa-clipboard-list"></i>
-                    <span>作业管理</span>
-                </a></li>
-                <li><a href="grades.html">
-                    <div class="nav-accent"></div>
-                    <i class="fas fa-chart-line"></i>
-                    <span>成绩管理</span>
-                </a></li>
-                <li><a href="materials.html">
-                    <div class="nav-accent"></div>
-                    <i class="fas fa-folder-open"></i>
-                    <span>课程资料</span>
-                </a></li>
-                <li><a href="#" onclick="logout()">
-                    <div class="nav-accent"></div>
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>退出登录</span>
+                    <span>课程管理</span>
                 </a></li>
             </nav>
+            <div style="position:absolute;bottom:24px;left:0;right:0;padding:0 20px;">
+                <button class="btn-ghost" onclick="logout()" style="width:100%;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.3);color:#d4af37;">
+                    <i class="fas fa-sign-out-alt"></i> 退出登录
+                </button>
+            </div>
         </aside>
 
         <!-- 主内容区 -->
@@ -68,7 +53,7 @@
             <!-- 顶部栏 -->
             <header class="topbar">
                 <div class="greeting-section">
-                    <h2 class="greeting-text" id="greetingText">上午好！</h2>
+                    <h2 class="greeting-text">我的授课课程</h2>
                     <p class="greeting-sub">管理您的授课课程</p>
                 </div>
                 <div class="topbar-actions">
@@ -161,6 +146,12 @@
             checkLogin();
             loadCourses();
             loadDraft('course'); // 加载草稿
+            
+            // 检查 URL 参数，如果有 action=create，自动弹出创建课程窗口
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('action') === 'create') {
+                showCreateCourseModal();
+            }
         });
 
         // 加载课程列表
@@ -195,15 +186,12 @@
                         </div>
                         <div class="course-card-body">
                             <p class="course-meta"><i class="fas fa-code"></i> ${course.course_code}</p>
-                            <p class="course-meta"><i class="fas fa-graduation-cap"></i> ${course.credits} 学分</p>
+                            <p class="course-meta"><i class="fas fa-graduation-cap"></i> ${course.credits || 0} 学分</p>
                             <p class="course-meta"><i class="fas fa-building"></i> ${course.department || '未指定'}</p>
                         </div>
                         <div class="course-card-footer">
                             <button class="btn-sm btn-primary" onclick="viewCourseDetail(${course.id})">
                                 <i class="fas fa-eye"></i> 查看详情
-                            </button>
-                            <button class="btn-sm btn-secondary" onclick="manageMaterials(${course.id})">
-                                <i class="fas fa-folder"></i> 课程资料
                             </button>
                         </div>
                     `;

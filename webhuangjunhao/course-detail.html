@@ -6,6 +6,36 @@
     <title>课程详情 - 教师工作台</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="teacher.css">
+    <style>
+        .grade-input {
+            width: 70px;
+            padding: 4px 8px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #181c22;
+            color: #e8eaed;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+        .grade-input:focus {
+            outline: none;
+            border-color: #d4af37;
+        }
+        .grade-input:hover {
+            border-color: #9aa0a6;
+        }
+        .table-responsive {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .data-table th {
+            position: sticky;
+            top: 0;
+            background: #23272e;
+            z-index: 10;
+        }
+    </style>
 </head>
 <body>
     <div class="app-shell">
@@ -39,27 +69,12 @@
                     <i class="fas fa-book-open"></i>
                     <span>课程管理</span>
                 </a></li>
-                <li><a href="assignments.html">
-                    <div class="nav-accent"></div>
-                    <i class="fas fa-clipboard-list"></i>
-                    <span>作业考试</span>
-                </a></li>
-                <li><a href="grades.html">
-                    <div class="nav-accent"></div>
-                    <i class="fas fa-chart-line"></i>
-                    <span>成绩管理</span>
-                </a></li>
-                <li><a href="materials.html">
-                    <div class="nav-accent"></div>
-                    <i class="fas fa-folder-open"></i>
-                    <span>课程资料</span>
-                </a></li>
-                <li><a href="#" onclick="logout()">
-                    <div class="nav-accent"></div>
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>退出登录</span>
-                </a></li>
             </nav>
+            <div style="position:absolute;bottom:24px;left:0;right:0;padding:0 20px;">
+                <button class="btn-ghost" onclick="logout()" style="width:100%;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.3);color:#d4af37;">
+                    <i class="fas fa-sign-out-alt"></i> 退出登录
+                </button>
+            </div>
         </aside>
 
         <main class="main-content">
@@ -70,14 +85,6 @@
                     </button>
                     <h2 class="greeting-text" id="courseName">课程详情</h2>
                 </div>
-                <div class="topbar-actions">
-                    <button class="btn-secondary" onclick="editCourse()">
-                        <i class="fas fa-edit"></i> 编辑课程
-                    </button>
-                    <button class="btn-primary" onclick="manageMaterials()">
-                        <i class="fas fa-folder"></i> 课程资料
-                    </button>
-                </div>
             </header>
 
             <div class="content-container">
@@ -85,6 +92,11 @@
                 <div class="panel">
                     <div class="panel-header">
                         <h3><i class="fas fa-info-circle"></i> 课程信息</h3>
+                        <div class="topbar-actions">
+                            <button class="btn-secondary btn-sm" onclick="editCourse()">
+                                <i class="fas fa-edit"></i> 编辑课程
+                            </button>
+                        </div>
                     </div>
                     <div class="panel-body">
                         <div class="detail-grid">
@@ -118,72 +130,55 @@
 
                 <!-- 统计卡片 -->
                 <div class="stats-grid">
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="showContent('assignments')" style="cursor:pointer;">
+                        <div class="stat-icon" style="background:linear-gradient(135deg,#fbbc04,#f9ab00);">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="assignmentCount">0</div>
+                            <div class="stat-label">作业详情 →</div>
+                        </div>
+                    </div>
+                    <div class="stat-card" onclick="showContent('students')" style="cursor:pointer;">
                         <div class="stat-icon">
                             <i class="fas fa-users"></i>
                         </div>
                         <div class="stat-content">
                             <div class="stat-value" id="enrollmentCount">0</div>
-                            <div class="stat-label">选课人数</div>
+                            <div class="stat-label">选课人数 →</div>
                         </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-clipboard-list"></i>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-value" id="assignmentCount">0</div>
-                            <div class="stat-label">作业/考试</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="showContent('materials')" style="cursor:pointer;">
                         <div class="stat-icon">
                             <i class="fas fa-folder"></i>
                         </div>
                         <div class="stat-content">
                             <div class="stat-value" id="materialCount">0</div>
-                            <div class="stat-label">课程资料</div>
+                            <div class="stat-label">课程资料 →</div>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="showContent('grades')" style="cursor:pointer;">
                         <div class="stat-icon">
                             <i class="fas fa-chart-line"></i>
                         </div>
                         <div class="stat-content">
                             <div class="stat-value" id="avgGrade">-</div>
-                            <div class="stat-label">平均成绩</div>
+                            <div class="stat-label">平均成绩 →</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 学生名单 -->
-                <div class="panel">
+                <!-- 动态内容区域（初始隐藏） -->
+                <div class="panel" id="dynamicContentPanel" style="display:none;">
                     <div class="panel-header">
-                        <h3><i class="fas fa-users"></i> 选课学生</h3>
-                        <button class="btn-sm btn-primary" onclick="exportStudentList()">
-                            <i class="fas fa-download"></i> 导出名单
+                        <h3 id="dynamicContentTitle"><i class="fas fa-info-circle"></i> 内容</h3>
+                        <button class="btn-sm btn-secondary" onclick="hideContent()">
+                            <i class="fas fa-times"></i> 关闭
                         </button>
                     </div>
                     <div class="panel-body">
-                        <div class="table-responsive">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>学号</th>
-                                        <th>姓名</th>
-                                        <th>班级</th>
-                                        <th>选课时间</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="studentList">
-                                    <tr class="empty-state-row">
-                                        <td colspan="5">
-                                            <i class="fas fa-spinner fa-spin"></i> 加载中...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div id="dynamicContentBody">
+                            <!-- 内容将动态加载 -->
                         </div>
                     </div>
                 </div>
@@ -210,7 +205,6 @@
             }
             
             loadCourseDetail();
-            loadEnrollments();
         });
 
         async function loadCourseDetail() {
@@ -230,7 +224,7 @@
                 // 填充页面信息
                 document.getElementById('courseName').textContent = course.course_name;
                 document.getElementById('courseCode').textContent = course.course_code;
-                document.getElementById('courseCredits').textContent = course.credits + ' 学分';
+                document.getElementById('courseCredits').textContent = (course.credits || 0) + ' 学分';
                 document.getElementById('courseDepartment').textContent = course.department || '未指定';
                 document.getElementById('courseSemester').textContent = assignment.semester;
                 document.getElementById('courseDescription').textContent = course.description || '暂无描述';
@@ -246,47 +240,910 @@
 
         async function loadStats() {
             try {
-                // 这里可以调用API获取统计信息
-                // 暂时显示占位数据
+                // 加载作业数量
+                const assignments = await getAssignments(courseId);
+                if (assignments && Array.isArray(assignments)) {
+                    document.getElementById('assignmentCount').textContent = assignments.length;
+                }
+                
+                // 加载课程资料数量
+                try {
+                    const materials = await getMaterials(courseId);
+                    if (materials && Array.isArray(materials)) {
+                        document.getElementById('materialCount').textContent = materials.length;
+                    }
+                } catch (err) {
+                    document.getElementById('materialCount').textContent = '0';
+                }
+                
+                // 其他统计信息占位
                 document.getElementById('enrollmentCount').textContent = '-';
-                document.getElementById('assignmentCount').textContent = '-';
-                document.getElementById('materialCount').textContent = '-';
                 document.getElementById('avgGrade').textContent = '-';
             } catch (error) {
                 console.error('加载统计信息失败:', error);
             }
         }
 
-        async function loadEnrollments() {
-            const tbody = document.getElementById('studentList');
+        // 显示动态内容
+        async function showContent(type) {
+            const panel = document.getElementById('dynamicContentPanel');
+            const titleEl = document.getElementById('dynamicContentTitle');
+            const bodyEl = document.getElementById('dynamicContentBody');
+            
+            // 设置标题和初始加载状态
+            const titles = {
+                'assignments': '<i class="fas fa-clipboard-list"></i> 作业详情',
+                'students': '<i class="fas fa-users"></i> 选课学生',
+                'materials': '<i class="fas fa-folder"></i> 课程资料',
+                'grades': '<i class="fas fa-chart-line"></i> 平均成绩'
+            };
+            titleEl.innerHTML = titles[type] || '<i class="fas fa-info-circle"></i> 内容';
+            bodyEl.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
+            panel.style.display = 'block';
+            
             try {
-                // TODO: 调用API获取选课学生列表
-                // 暂时显示提示
-                tbody.innerHTML = `
-                    <tr class="empty-state-row">
-                        <td colspan="5">
-                            <i class="fas fa-info-circle"></i> 暂无选课学生
-                        </td>
-                    </tr>
-                `;
+                if (type === 'assignments') {
+                    await loadAssignmentsContent(bodyEl);
+                } else if (type === 'students') {
+                    await loadStudentsContent(bodyEl);
+                } else if (type === 'materials') {
+                    await loadMaterialsContent(bodyEl);
+                } else if (type === 'grades') {
+                    await loadGradesContent(bodyEl);
+                }
             } catch (error) {
-                console.error('加载学生列表失败:', error);
-                tbody.innerHTML = `
-                    <tr class="empty-state-row">
-                        <td colspan="5">
-                            <i class="fas fa-exclamation-triangle"></i> 加载失败
-                        </td>
-                    </tr>
-                `;
+                console.error('加载内容失败:', error);
+                bodyEl.innerHTML = '<div style="text-align:center;padding:40px;color:#ea4335;"><i class="fas fa-exclamation-triangle"></i><p>加载失败</p></div>';
             }
         }
 
-        function editCourse() {
-            alert('编辑课程功能开发中');
+        // 加载作业详情
+        async function loadAssignmentsContent(container) {
+            const assignments = await getAssignments(courseId);
+            
+            let html = '<div style="margin-bottom:16px;text-align:right;"><button class="btn-primary btn-sm" onclick="showAddAssignmentModal()"><i class="fas fa-plus"></i> 新增作业</button></div>';
+            
+            if (!assignments || assignments.length === 0) {
+                html += '<div style="text-align:center;padding:40px;color:#999;"><i class="fas fa-inbox"></i><p>暂无相关数据</p></div>';
+            } else {
+                html += assignments.map(a => `
+                    <div class="assignment-item" style="background:#1a2028;border:1px solid #2a3139;border-radius:8px;padding:16px;margin-bottom:12px;">
+                        <div style="display:flex;justify-content:space-between;align-items:start;">
+                            <div style="flex:1;">
+                                <h4 style="margin:0 0 8px 0;color:#d4af37;">${a.title}</h4>
+                                <p style="margin:4px 0;color:#9aa0a6;font-size:0.9rem;">
+                                    <i class="fas fa-calendar"></i> 截止: ${a.deadline || a.due_date || '无限期'}
+                                </p>
+                                <p style="margin:4px 0;color:#9aa0a6;font-size:0.9rem;">
+                                    ${a.description || '无描述'}
+                                </p>
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <span style="padding:4px 12px;border-radius:4px;background:${a.type === 'exam' ? '#ea4335' : '#34a853'};color:#fff;font-size:0.85rem;">
+                                    ${a.type === 'exam' ? '考试' : '作业'}
+                                </span>
+                                <button class="btn-sm btn-primary" onclick="showSubmissions(${a.id}, '${a.title.replace(/'/g, "\\'")}')\" title="提交情况">
+                                    <i class="fas fa-users"></i>
+                                </button>
+                                <button class="btn-sm btn-secondary" onclick="editAssignmentModal(${a.id})" title="编辑">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-sm" style="background:#ea4335;color:#fff;border:none;" onclick="deleteAssignmentConfirm(${a.id})" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            container.innerHTML = html;
+        }
+
+        // 加载选课学生
+        async function loadStudentsContent(container) {
+            // TODO: 调用后端API获取选课学生列表
+            // 暂时显示暂无数据
+            container.innerHTML = `
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>学号</th>
+                                <th>姓名</th>
+                                <th>班级</th>
+                                <th>选课时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="empty-state-row">
+                                <td colspan="5">
+                                    <i class="fas fa-info-circle"></i> 暂无相关数据
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 加载课程资料
+        async function loadMaterialsContent(container) {
+            const materials = await getMaterials(courseId);
+            
+            let html = '<div style="margin-bottom:16px;text-align:right;"><button class="btn-primary btn-sm" onclick="showAddMaterialModal()"><i class="fas fa-plus"></i> 新增资料</button></div>';
+            
+            if (!materials || materials.length === 0) {
+                html += '<div style="text-align:center;padding:40px;color:#999;"><i class="fas fa-inbox"></i><p>暂无相关数据</p></div>';
+            } else {
+                html += materials.map(m => `
+                    <div class="material-item" style="background:#1a2028;border:1px solid #2a3139;border-radius:8px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+                        <div style="flex:1;">
+                            <h4 style="margin:0 0 4px 0;color:#d4af37;">
+                                <i class="fas fa-file"></i> ${m.title}
+                            </h4>
+                            <p style="margin:4px 0;color:#9aa0a6;font-size:0.9rem;">
+                                ${m.description || '无描述'}
+                            </p>
+                            <p style="margin:4px 0;color:#9aa0a6;font-size:0.85rem;">
+                                文件: ${m.file_path || '-'}
+                            </p>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <a href="${m.file_url || m.file_path}" target="_blank" class="btn-sm btn-primary" title="下载">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            <button class="btn-sm btn-secondary" onclick="editMaterialModal(${m.id})" title="编辑">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-sm" style="background:#ea4335;color:#fff;border:none;" onclick="deleteMaterialConfirm(${m.id})" title="删除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            container.innerHTML = html;
+        }
+
+        // 加载平均成绩
+        async function loadGradesContent(container) {
+            try {
+                const gradeItems = await getGradeItems(courseId);
+                
+                // 如果没有成绩项，显示提示
+                if (!gradeItems || gradeItems.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align:center;padding:40px;color:#999;">
+                            <i class="fas fa-exclamation-circle" style="font-size:48px;margin-bottom:16px;"></i>
+                            <p style="font-size:1.1rem;margin-bottom:20px;">请先规定当前课程成绩项！</p>
+                            <button class="btn-primary" onclick="showGradeItemsModal()">
+                                <i class="fas fa-cog"></i> 设置成绩项
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // 获取所有学生成绩
+                const gradesData = await getCourseGrades(courseId);
+                
+                let html = `
+                    <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <span style="color:#9aa0a6;">当前成绩项: ${gradeItems.length} 个</span>
+                        </div>
+                        <button class="btn-secondary btn-sm" onclick="showGradeItemsModal()">
+                            <i class="fas fa-cog"></i> 设置成绩项
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>学号</th>
+                                    <th>姓名</th>
+                `;
+                
+                // 添加成绩项列
+                gradeItems.forEach(item => {
+                    html += `<th>${item.item_name}<br><span style="font-size:0.85em;color:#9aa0a6;">(${(item.weight * 100).toFixed(0)}%)</span></th>`;
+                });
+                
+                html += `
+                                    <th>平均分</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                // 添加学生成绩行
+                if (!gradesData.students || gradesData.students.length === 0) {
+                    html += `
+                        <tr class="empty-state-row">
+                            <td colspan="${gradeItems.length + 3}">
+                                <i class="fas fa-inbox"></i> 暂无学生选课
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    gradesData.students.forEach(student => {
+                        html += `
+                            <tr>
+                                <td>${student.student_id || '-'}</td>
+                                <td>${student.student_name || '-'}</td>
+                        `;
+                        
+                        let total = 0;
+                        let count = 0;
+                        
+                        gradeItems.forEach(item => {
+                            const grade = student.grades[item.id];
+                            const score = grade && grade.score !== null ? grade.score : null;
+                            
+                            if (score !== null) {
+                                total += score;
+                                count++;
+                            }
+                            
+                            html += `
+                                <td>
+                                    <input type="number" 
+                                           class="grade-input" 
+                                           value="${score !== null ? score : ''}" 
+                                           placeholder="-"
+                                           min="0" 
+                                           max="100" 
+                                           step="0.5"
+                                           data-enrollment-id="${student.enrollment_id}"
+                                           data-grade-item-id="${item.id}"
+                                           data-grade-id="${grade ? grade.grade_id : ''}"
+                                           onchange="updateStudentGrade(this)"
+                                           style="width:70px;padding:4px 8px;border:1px solid #444;border-radius:4px;background:#181c22;color:#e8eaed;text-align:center;">
+                                </td>
+                            `;
+                        });
+                        
+                        const avg = count > 0 ? (total / count).toFixed(2) : '-';
+                        html += `
+                                <td><strong style="color:#d4af37;">${avg}</strong></td>
+                            </tr>
+                        `;
+                    });
+                }
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('加载成绩失败:', error);
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#ea4335;"><i class="fas fa-exclamation-triangle"></i><p>加载失败</p></div>';
+            }
+        }
+        
+        // 更新学生成绩
+        async function updateStudentGrade(input) {
+            const enrollmentId = input.dataset.enrollmentId;
+            const gradeItemId = input.dataset.gradeItemId;
+            const score = input.value.trim();
+            
+            try {
+                const result = await createOrUpdateGrade(enrollmentId, {
+                    grade_item_id: parseInt(gradeItemId),
+                    score: score === '' ? null : parseFloat(score)
+                });
+                
+                if (result) {
+                    // 更新成功，改变输入框样式表示已保存
+                    input.style.borderColor = '#34a853';
+                    setTimeout(() => {
+                        input.style.borderColor = '#444';
+                    }, 1000);
+                } else {
+                    alert('更新失败');
+                }
+            } catch (error) {
+                console.error('更新成绩失败:', error);
+                alert('更新失败：' + error.message);
+            }
+        }
+
+        // 隐藏动态内容
+        function hideContent() {
+            document.getElementById('dynamicContentPanel').style.display = 'none';
+        }
+
+                // 编辑课程弹窗逻辑
+                function editCourse() {
+                        // 构建弹窗HTML
+                        let modal = document.getElementById('editCourseModal');
+                        if (!modal) {
+                                modal = document.createElement('div');
+                                modal.id = 'editCourseModal';
+                                modal.innerHTML = `
+                                <div class="modal-mask"></div>
+                                <div class="modal-dialog">
+                                    <div class="modal-header">
+                                        <span class="modal-title"><i class="fas fa-edit"></i> 编辑课程信息</span>
+                                        <button class="modal-close" id="closeEditCourseModal">&times;</button>
+                                    </div>
+                                    <form id="editCourseForm" class="modal-body">
+                                        <div class="form-group">
+                                            <label>课程名</label>
+                                            <input type="text" name="course_name" class="input-field" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>学分</label>
+                                            <input type="number" name="credits" class="input-field" min="0" step="0.1" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>院系</label>
+                                            <input type="text" name="department" class="input-field">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>简介</label>
+                                            <textarea name="description" class="input-field" rows="2" style="resize:vertical;"></textarea>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>选课要求</label>
+                                            <input type="text" name="prerequisites" class="input-field">
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="btn-primary">保存修改</button>
+                                        </div>
+                                        <div id="editCourseMsg" class="form-msg"></div>
+                                    </form>
+                                </div>
+                                <style>
+                                .modal-mask {position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.35);z-index:1001;}
+                                .modal-dialog {position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card-bg,#23272e);color:var(--text,#e8eaed);border-radius:12px;box-shadow:0 8px 32px #0008;z-index:1002;min-width:340px;max-width:96vw;padding:0;}
+                                .modal-header {display:flex;align-items:center;justify-content:space-between;padding:18px 22px 10px 22px;border-bottom:1px solid #333;}
+                                .modal-title {font-size:1.15rem;font-weight:600;}
+                                .modal-close {background:none;border:none;font-size:1.5rem;color:#aaa;cursor:pointer;}
+                                .modal-body {padding:18px 22px 10px 22px;}
+                                .form-group {margin-bottom:14px;}
+                                .form-group label {display:block;margin-bottom:4px;font-size:0.98rem;}
+                                .input-field {width:100%;padding:7px 10px;border:1px solid #444;border-radius:4px;background:#181c22;color:#e8eaed;font-size:1rem;}
+                                .form-actions {text-align:right;margin-top:10px;}
+                                .form-msg {color:#f44336;font-size:0.98rem;margin-top:8px;min-height:22px;}
+                                </style>
+                                `;
+                                document.body.appendChild(modal);
+                        }
+                        // 填充表单
+                        const course = getCurrentCourseData();
+                        const form = modal.querySelector('#editCourseForm');
+                        form.course_name.value = course.course_name || '';
+                        form.credits.value = course.credits || '';
+                        form.department.value = course.department || '';
+                        form.description.value = course.description || '';
+                        form.prerequisites.value = course.prerequisites || '';
+                        modal.style.display = 'block';
+                        // 关闭按钮
+                        modal.querySelector('#closeEditCourseModal').onclick = function() {
+                                modal.style.display = 'none';
+                        };
+                        modal.querySelector('.modal-mask').onclick = function() {
+                                modal.style.display = 'none';
+                        };
+                        // 提交表单
+                        form.onsubmit = async function(e) {
+                                e.preventDefault();
+                                const payload = {
+                                        course_name: form.course_name.value.trim(),
+                                        credits: form.credits.value,
+                                        department: form.department.value.trim(),
+                                        description: form.description.value.trim(),
+                                        prerequisites: form.prerequisites.value.trim()
+                                };
+                                modal.querySelector('#editCourseMsg').textContent = '';
+                                const resp = await apiRequest(`/courses/${courseId}`, 'PATCH', payload);
+                                if (resp && resp.id) {
+                                        modal.style.display = 'none';
+                                        await loadCourseDetail();
+                                } else {
+                                        modal.querySelector('#editCourseMsg').textContent = (resp && resp.detail) || '保存失败';
+                                }
+                        };
+                }
+
+                // 获取当前页面已加载的课程主信息
+                function getCurrentCourseData() {
+                        return {
+                                course_name: document.getElementById('courseName').textContent,
+                                credits: (document.getElementById('courseCredits').textContent||'').replace(/[^\d.]/g,''),
+                                department: document.getElementById('courseDepartment').textContent,
+                                description: document.getElementById('courseDescription').textContent,
+                                prerequisites: document.getElementById('coursePrerequisites').textContent
+                        };
+                }
+
+        // ========== 作业管理函数 ==========
+        
+        // 显示新增作业弹窗
+        function showAddAssignmentModal() {
+            showAssignmentModal(null);
+        }
+        
+        // 显示编辑作业弹窗
+        async function editAssignmentModal(assignmentId) {
+            const assignments = await getAssignments(courseId);
+            const assignment = assignments.find(a => a.id === assignmentId);
+            if (assignment) {
+                showAssignmentModal(assignment);
+            }
+        }
+        
+        // 作业弹窗（新增或编辑）
+        function showAssignmentModal(assignment) {
+            const isEdit = !!assignment;
+            let modal = document.getElementById('assignmentModal');
+            
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'assignmentModal';
+                modal.innerHTML = `
+                    <div class="modal-mask"></div>
+                    <div class="modal-dialog">
+                        <div class="modal-header">
+                            <span class="modal-title"><i class="fas fa-clipboard-list"></i> <span id="assignmentModalTitle">新增作业</span></span>
+                            <button class="modal-close" onclick="closeAssignmentModal()">&times;</button>
+                        </div>
+                        <form id="assignmentForm" class="modal-body">
+                            <div class="form-group">
+                                <label>标题 *</label>
+                                <input type="text" name="title" class="input-field" required>
+                            </div>
+                            <div class="form-group">
+                                <label>类型 *</label>
+                                <select name="type" class="input-field" required>
+                                    <option value="assignment">作业</option>
+                                    <option value="exam">考试</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>描述</label>
+                                <textarea name="description" class="input-field" rows="3" style="resize:vertical;"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>截止日期</label>
+                                <input type="datetime-local" name="deadline" class="input-field">
+                            </div>
+                            <div class="form-group">
+                                <label>文件路径</label>
+                                <input type="text" name="file_path" class="input-field" placeholder="可选">
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn-primary">保存</button>
+                            </div>
+                            <div id="assignmentMsg" class="form-msg"></div>
+                        </form>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            const form = modal.querySelector('#assignmentForm');
+            const titleEl = modal.querySelector('#assignmentModalTitle');
+            
+            if (isEdit) {
+                titleEl.textContent = '编辑作业';
+                form.title.value = assignment.title || '';
+                form.type.value = assignment.type || 'assignment';
+                form.description.value = assignment.description || '';
+                form.file_path.value = assignment.file_path || '';
+                
+                // 处理截止日期
+                if (assignment.deadline) {
+                    const dt = new Date(assignment.deadline);
+                    const localISOTime = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                    form.deadline.value = localISOTime;
+                }
+            } else {
+                titleEl.textContent = '新增作业';
+                form.reset();
+            }
+            
+            modal.style.display = 'block';
+            
+            // 关闭按钮
+            modal.querySelector('.modal-mask').onclick = closeAssignmentModal;
+            
+            // 提交表单
+            form.onsubmit = async function(e) {
+                e.preventDefault();
+                const msgEl = modal.querySelector('#assignmentMsg');
+                msgEl.textContent = '';
+                
+                const payload = {
+                    title: form.title.value.trim(),
+                    type: form.type.value,
+                    description: form.description.value.trim(),
+                    file_path: form.file_path.value.trim(),
+                    deadline: form.deadline.value ? new Date(form.deadline.value).toISOString() : null
+                };
+                
+                let resp;
+                if (isEdit) {
+                    resp = await updateAssignment(assignment.id, payload);
+                } else {
+                    resp = await createAssignment(courseId, payload);
+                }
+                
+                if (resp && resp.id) {
+                    closeAssignmentModal();
+                    await showContent('assignments'); // 刷新列表
+                } else {
+                    msgEl.textContent = (resp && resp.detail) || '操作失败';
+                }
+            };
+        }
+        
+        function closeAssignmentModal() {
+            const modal = document.getElementById('assignmentModal');
+            if (modal) modal.style.display = 'none';
+        }
+        
+        // 删除作业确认
+        async function deleteAssignmentConfirm(assignmentId) {
+            if (!confirm('确定要删除这个作业吗？')) return;
+            
+            const success = await deleteAssignment(assignmentId);
+            if (success) {
+                await showContent('assignments'); // 刷新列表
+            } else {
+                alert('删除失败');
+            }
+        }
+        
+        // ========== 课程资料管理函数 ==========
+        
+        // 显示新增资料弹窗
+        function showAddMaterialModal() {
+            showMaterialModal(null);
+        }
+        
+        // 显示编辑资料弹窗
+        async function editMaterialModal(materialId) {
+            const materials = await getMaterials(courseId);
+            const material = materials.find(m => m.id === materialId);
+            if (material) {
+                showMaterialModal(material);
+            }
+        }
+        
+        // 资料弹窗（新增或编辑）
+        function showMaterialModal(material) {
+            const isEdit = !!material;
+            let modal = document.getElementById('materialModal');
+            
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'materialModal';
+                modal.innerHTML = `
+                    <div class="modal-mask"></div>
+                    <div class="modal-dialog">
+                        <div class="modal-header">
+                            <span class="modal-title"><i class="fas fa-folder"></i> <span id="materialModalTitle">新增资料</span></span>
+                            <button class="modal-close" onclick="closeMaterialModal()">&times;</button>
+                        </div>
+                        <form id="materialForm" class="modal-body">
+                            <div class="form-group">
+                                <label>标题 *</label>
+                                <input type="text" name="title" class="input-field" required>
+                            </div>
+                            <div class="form-group">
+                                <label>描述</label>
+                                <textarea name="description" class="input-field" rows="2" style="resize:vertical;"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>文件路径 *</label>
+                                <input type="text" name="file_path" class="input-field" placeholder="例如: /uploads/materials/file.pdf" required>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn-primary">保存</button>
+                            </div>
+                            <div id="materialMsg" class="form-msg"></div>
+                        </form>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            const form = modal.querySelector('#materialForm');
+            const titleEl = modal.querySelector('#materialModalTitle');
+            
+            if (isEdit) {
+                titleEl.textContent = '编辑资料';
+                form.title.value = material.title || '';
+                form.description.value = material.description || '';
+                form.file_path.value = material.file_path || '';
+            } else {
+                titleEl.textContent = '新增资料';
+                form.reset();
+            }
+            
+            modal.style.display = 'block';
+            
+            // 关闭按钮
+            modal.querySelector('.modal-mask').onclick = closeMaterialModal;
+            
+            // 提交表单
+            form.onsubmit = async function(e) {
+                e.preventDefault();
+                const msgEl = modal.querySelector('#materialMsg');
+                msgEl.textContent = '';
+                
+                const payload = {
+                    title: form.title.value.trim(),
+                    description: form.description.value.trim(),
+                    file_path: form.file_path.value.trim()
+                };
+                
+                let resp;
+                if (isEdit) {
+                    resp = await updateMaterial(material.id, payload);
+                } else {
+                    resp = await createMaterial(courseId, payload);
+                }
+                
+                if (resp && resp.id) {
+                    closeMaterialModal();
+                    await showContent('materials'); // 刷新列表
+                    await loadStats(); // 更新统计
+                } else {
+                    msgEl.textContent = (resp && resp.detail) || '操作失败';
+                }
+            };
+        }
+        
+        function closeMaterialModal() {
+            const modal = document.getElementById('materialModal');
+            if (modal) modal.style.display = 'none';
+        }
+        
+        // 删除资料确认
+        async function deleteMaterialConfirm(materialId) {
+            if (!confirm('确定要删除这个资料吗？')) return;
+            
+            const success = await deleteMaterial(materialId);
+            if (success) {
+                await showContent('materials'); // 刷新列表
+                await loadStats(); // 更新统计
+            } else {
+                alert('删除失败');
+            }
         }
 
         function manageMaterials() {
             window.location.href = `materials.html?course_id=${courseId}`;
+        }
+
+        // 跳转到作业提交情况页面
+        function showSubmissions(assignmentId, assignmentTitle) {
+            window.location.href = `assignment-submissions.html?assignment_id=${assignmentId}&course_id=${courseId}&title=${encodeURIComponent(assignmentTitle)}`;
+        }
+
+        // ========== 成绩项管理函数 ==========
+        
+        // 显示设置成绩项弹窗 - 全局函数
+        window.showGradeItemsModal = async function() {
+            let modal = document.getElementById('gradeItemsModal');
+            
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'gradeItemsModal';
+                modal.innerHTML = `
+                    <div class="modal-mask"></div>
+                    <div class="modal-dialog" style="max-width:700px;">
+                        <div class="modal-header">
+                            <span class="modal-title"><i class="fas fa-cog"></i> 设置成绩项</span>
+                            <button class="modal-close" onclick="closeGradeItemsModal()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div style="margin-bottom:16px;padding:12px;background:#2a3139;border-radius:6px;color:#fbbc04;">
+                                <i class="fas fa-exclamation-triangle"></i> 注意：修改成绩项将作废所有已录入的学生成绩！
+                            </div>
+                            <div id="gradeItemsList" style="margin-bottom:16px;">
+                                <!-- 成绩项列表 -->
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#1a2028;border-radius:6px;">
+                                <span style="color:#9aa0a6;">权重总和: <strong id="totalWeight" style="color:#d4af37;">0%</strong></span>
+                                <button class="btn-secondary btn-sm" onclick="addGradeItemRow()">
+                                    <i class="fas fa-plus"></i> 添加成绩项
+                                </button>
+                            </div>
+                            <div class="form-actions" style="margin-top:20px;">
+                                <button class="btn-secondary" onclick="closeGradeItemsModal()">取消</button>
+                                <button class="btn-primary" onclick="saveGradeItems()">保存并应用</button>
+                            </div>
+                            <div id="gradeItemsMsg" class="form-msg"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            // 加载现有成绩项
+            const items = await getGradeItems(courseId);
+            renderGradeItemsForm(items || []);
+            
+            modal.style.display = 'block';
+            modal.querySelector('.modal-mask').onclick = closeGradeItemsModal;
+        }
+        
+        window.closeGradeItemsModal = function() {
+            const modal = document.getElementById('gradeItemsModal');
+            if (modal) modal.style.display = 'none';
+        }
+        
+        // 渲染成绩项表单
+        window.renderGradeItemsForm = function(items) {
+            const container = document.getElementById('gradeItemsList');
+            
+            if (items.length === 0) {
+                // 如果没有成绩项，添加两个默认行
+                items = [
+                    { item_name: '平时成绩', weight: 0.3, description: '' },
+                    { item_name: '期末考试', weight: 0.7, description: '' }
+                ];
+            }
+            
+            let html = '';
+            items.forEach((item, index) => {
+                html += `
+                    <div class="grade-item-row" data-index="${index}" style="background:#1a2028;border:1px solid #2a3139;border-radius:6px;padding:12px;margin-bottom:10px;">
+                        <div style="display:flex;gap:12px;align-items:start;">
+                            <div style="flex:2;">
+                                <label style="display:block;margin-bottom:4px;font-size:0.9rem;color:#9aa0a6;">项目名称 *</label>
+                                <input type="text" class="input-field grade-item-name" value="${item.item_name || ''}" placeholder="例如：平时成绩" required>
+                            </div>
+                            <div style="flex:1;">
+                                <label style="display:block;margin-bottom:4px;font-size:0.9rem;color:#9aa0a6;">权重 (0-1) *</label>
+                                <input type="number" class="input-field grade-item-weight" value="${item.weight || ''}" placeholder="0.3" min="0" max="1" step="0.01" required onchange="updateTotalWeight()">
+                            </div>
+                            <div style="padding-top:24px;">
+                                <button class="btn-sm" style="background:#ea4335;color:#fff;border:none;" onclick="removeGradeItemRow(${index})" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div style="margin-top:8px;">
+                            <label style="display:block;margin-bottom:4px;font-size:0.9rem;color:#9aa0a6;">描述</label>
+                            <input type="text" class="input-field grade-item-desc" value="${item.description || ''}" placeholder="可选">
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            updateTotalWeight();
+        }
+        
+        // 添加成绩项行
+        window.addGradeItemRow = function() {
+            const container = document.getElementById('gradeItemsList');
+            const index = container.querySelectorAll('.grade-item-row').length;
+            
+            const newRow = document.createElement('div');
+            newRow.className = 'grade-item-row';
+            newRow.dataset.index = index;
+            newRow.style.cssText = 'background:#1a2028;border:1px solid #2a3139;border-radius:6px;padding:12px;margin-bottom:10px;';
+            newRow.innerHTML = `
+                <div style="display:flex;gap:12px;align-items:start;">
+                    <div style="flex:2;">
+                        <label style="display:block;margin-bottom:4px;font-size:0.9rem;color:#9aa0a6;">项目名称 *</label>
+                        <input type="text" class="input-field grade-item-name" placeholder="例如：平时成绩" required>
+                    </div>
+                    <div style="flex:1;">
+                        <label style="display:block;margin-bottom:4px;font-size:0.9rem;color:#9aa0a6;">权重 (0-1) *</label>
+                        <input type="number" class="input-field grade-item-weight" placeholder="0.3" min="0" max="1" step="0.01" required onchange="updateTotalWeight()">
+                    </div>
+                    <div style="padding-top:24px;">
+                        <button class="btn-sm" style="background:#ea4335;color:#fff;border:none;" onclick="removeGradeItemRow(${index})" title="删除">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div style="margin-top:8px;">
+                    <label style="display:block;margin-bottom:4px;font-size:0.9rem;color:#9aa0a6;">描述</label>
+                    <input type="text" class="input-field grade-item-desc" placeholder="可选">
+                </div>
+            `;
+            
+            container.appendChild(newRow);
+            updateTotalWeight();
+        }
+        
+        // 删除成绩项行
+        window.removeGradeItemRow = function(index) {
+            const row = document.querySelector(`.grade-item-row[data-index="${index}"]`);
+            if (row) {
+                row.remove();
+                updateTotalWeight();
+            }
+        }
+        
+        // 更新权重总和
+        window.updateTotalWeight = function() {
+            const weights = document.querySelectorAll('.grade-item-weight');
+            let total = 0;
+            weights.forEach(input => {
+                const val = parseFloat(input.value) || 0;
+                total += val;
+            });
+            
+            const totalEl = document.getElementById('totalWeight');
+            if (totalEl) {
+                totalEl.textContent = (total * 100).toFixed(0) + '%';
+                totalEl.style.color = Math.abs(total - 1.0) < 0.01 ? '#34a853' : '#ea4335';
+            }
+        }
+        
+        // 保存成绩项
+        window.saveGradeItems = async function() {
+            const msgEl = document.getElementById('gradeItemsMsg');
+            msgEl.textContent = '';
+            
+            const rows = document.querySelectorAll('.grade-item-row');
+            const items = [];
+            
+            for (const row of rows) {
+                const name = row.querySelector('.grade-item-name').value.trim();
+                const weight = parseFloat(row.querySelector('.grade-item-weight').value);
+                const desc = row.querySelector('.grade-item-desc').value.trim();
+                
+                if (!name) {
+                    msgEl.textContent = '请填写所有成绩项名称';
+                    return;
+                }
+                
+                if (isNaN(weight) || weight < 0 || weight > 1) {
+                    msgEl.textContent = '权重必须在0-1之间';
+                    return;
+                }
+                
+                items.push({
+                    item_name: name,
+                    weight: weight,
+                    description: desc
+                });
+            }
+            
+            if (items.length === 0) {
+                msgEl.textContent = '至少需要一个成绩项';
+                return;
+            }
+            
+            const total = items.reduce((sum, item) => sum + item.weight, 0);
+            if (Math.abs(total - 1.0) > 0.01) {
+                msgEl.textContent = `权重总和必须等于1，当前为${(total * 100).toFixed(0)}%`;
+                return;
+            }
+            
+            // 确认操作
+            if (!confirm('修改成绩项将作废所有已录入的学生成绩，确定要继续吗？')) {
+                return;
+            }
+            
+            try {
+                const result = await batchUpdateGradeItems(courseId, items);
+                if (result) {
+                    closeGradeItemsModal();
+                    await showContent('grades'); // 刷新成绩详情
+                } else {
+                    msgEl.textContent = '保存失败';
+                }
+            } catch (error) {
+                console.error('保存成绩项失败:', error);
+                msgEl.textContent = '保存失败：' + error.message;
+            }
         }
 
         function exportStudentList() {

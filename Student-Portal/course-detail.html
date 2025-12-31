@@ -4,103 +4,135 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>课程学习 - 成绩管理教学平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-    <div class="header">
-      <div class="logo">成绩管理系统</div>
-      <div class="nav">
-        <a href="index.html">首页</a>
-        <a href="course-browse.html">浏览课程</a>
-        <a href="my-courses.html">我的课程</a>
-        <a href="grades.html">成绩查询</a>
-        <button onclick="logout()" class="btn-logout">退出</button>
-      </div>
+    <div class="app-shell">
+      <!-- 侧边栏将由JS自动插入 -->
+      
+      <main class="main-content">
+        <header class="page-header">
+          <div>
+            <h1 id="courseTitle"><i class="fas fa-book-open"></i> 课程名称</h1>
+            <p class="page-subtitle" id="courseInfo">
+              <i class="fas fa-chalkboard-teacher"></i> 授课教师：<span id="teacherName"></span> 
+              <span class="divider">|</span> 
+              <i class="fas fa-calendar"></i> 学期：<span id="courseSemester"></span>
+            </p>
+          </div>
+          <div class="header-actions">
+            <button class="btn-secondary" onclick="window.location.href='my-courses.html'">
+              <i class="fas fa-arrow-left"></i> 返回课程列表
+            </button>
+          </div>
+        </header>
+
+        <section class="filter-bar">
+          <button onclick="filterTasks('all')" class="filter-chip active" data-filter="all">
+            <i class="fas fa-th-large"></i> 全部任务
+          </button>
+          <button onclick="filterTasks('todo')" class="filter-chip" data-filter="todo">
+            <i class="fas fa-hourglass-half"></i> 待完成
+          </button>
+          <button onclick="filterTasks('done')" class="filter-chip" data-filter="done">
+            <i class="fas fa-check-circle"></i> 已完成
+          </button>
+        </section>
+
+        <section class="content-panel">
+          <div class="panel-header">
+            <h2><i class="fas fa-tasks"></i> 学习任务</h2>
+          </div>
+          <div class="task-grid" id="taskList">
+            <!-- 学习任务列表（资料类） -->
+          </div>
+        </section>
+
+        <section class="content-panel">
+          <div class="panel-header">
+            <h2><i class="fas fa-file-alt"></i> 课程资料</h2>
+          </div>
+          <div class="material-grid" id="materialList">
+            <!-- 课程资料列表 -->
+          </div>
+        </section>
+
+        <section class="content-panel">
+          <div class="panel-header">
+            <h2><i class="fas fa-clipboard-list"></i> 作业与考试</h2>
+          </div>
+          <div class="assignment-grid" id="assignmentList">
+            <!-- 作业与考试列表 -->
+          </div>
+        </section>
+      </main>
     </div>
 
-    <div class="container">
-      <h1 id="courseTitle">课程名称</h1>
-      <p id="courseInfo">
-        授课教师：<span id="teacherName"></span> | 学期：<span
-          id="courseSemester"
-        ></span>
-      </p>
-
-      <div class="task-filter">
-        <button
-          onclick="filterTasks('all')"
-          class="filter-btn active"
-          name="all"
-        >
-          全部任务
-        </button>
-        <button onclick="filterTasks('todo')" class="filter-btn" name="todo">
-          待完成
-        </button>
-        <button onclick="filterTasks('done')" class="filter-btn" name="done">
-          已完成
-        </button>
-      </div>
-
-      <div class="task-list" id="taskList">
-        <!-- 学习任务列表（资料类） -->
-      </div>
-
-      <h2>课程资料</h2>
-      <div class="material-list" id="materialList">
-        <!-- 课程资料列表 -->
-      </div>
-
-      <h2>作业与考试</h2>
-      <div class="task-list" id="assignmentList">
-        <!-- 作业与考试列表 -->
-      </div>
-    </div>
-
-    <div class="modal" id="taskModal">
-      <div class="modal-content">
-        <h2 id="taskTitle">任务标题</h2>
-        <div id="taskContent">
+    <div class="modal-overlay" id="taskModal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3 id="taskTitle">任务标题</h3>
+          <button class="btn-close" onclick="closeTaskModal()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body" id="taskContent">
           <!-- 任务内容 -->
         </div>
-        <div class="modal-buttons">
-          <button onclick="markTaskComplete()" id="completeBtn">
-            标记完成
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeTaskModal()">关闭</button>
+          <button class="btn-primary" id="completeBtn" onclick="markTaskComplete()">
+            <i class="fas fa-check"></i> 标记完成
           </button>
-          <button onclick="closeTaskModal()">关闭</button>
         </div>
       </div>
     </div>
 
-    <div class="modal" id="assignmentModal">
-      <div class="modal-content">
-        <h2 id="assignmentTitle">作业/考试</h2>
-        <div id="assignmentInfo">
-          <!-- 作业详情 -->
-        </div>
-        <div class="form-group">
-          <label for="assignmentText">作业内容（可选）：</label>
-          <textarea
-            id="assignmentText"
-            rows="4"
-            placeholder="在此输入作业答案..."
-          ></textarea>
-        </div>
-        <div class="form-group">
-          <label for="assignmentFile">上传附件（可选）：</label>
-          <input type="file" id="assignmentFile" />
-        </div>
-        <div class="modal-buttons">
-          <button onclick="submitAssignment()" id="assignmentSubmitBtn">
-            提交
+    <div class="modal-overlay" id="assignmentModal">
+      <div class="modal-dialog modal-large">
+        <div class="modal-header">
+          <h3 id="assignmentTitle">作业/考试</h3>
+          <button class="btn-close" onclick="closeAssignmentModal()">
+            <i class="fas fa-times"></i>
           </button>
-          <button onclick="closeAssignmentModal()">关闭</button>
+        </div>
+        <div class="modal-body">
+          <div id="assignmentInfo" class="mb-3">
+            <!-- 作业详情 -->
+          </div>
+          <div class="form-group">
+            <label for="assignmentText"><i class="fas fa-edit"></i> 作业内容（可选）：</label>
+            <textarea
+              id="assignmentText"
+              rows="6"
+              placeholder="在此输入作业答案..."
+              class="form-textarea"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label for="assignmentFile"><i class="fas fa-paperclip"></i> 上传附件（可选）：</label>
+            <input type="file" id="assignmentFile" class="form-file" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeAssignmentModal()">关闭</button>
+          <button class="btn-secondary" onclick="saveDraft()">
+            <i class="fas fa-save"></i> 暂存草稿
+          </button>
+          <button class="btn-primary" id="assignmentSubmitBtn" onclick="submitAssignment()">
+            <i class="fas fa-paper-plane"></i> 提交
+          </button>
         </div>
       </div>
     </div>
 
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/sidebar.js"></script>
     <script src="js/main.js"></script>
+    <script>
+      initSidebar('my-courses');
+    </script>
   </body>
 </html>

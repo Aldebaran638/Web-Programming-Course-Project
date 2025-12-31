@@ -202,7 +202,7 @@ function renderLogsTable() {
                     </div>
                 </td>
                 <td><span class="action-badge ${statusClass}">${actionText}</span></td>
-                <td class="log-details">${log.details || '无详细描述'}</td>
+                <td class="log-details">${log.description || log.details || '无详细描述'}</td>
                 <td><span class="ip-address">${log.ip_address || '未知'}</span></td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>
@@ -401,7 +401,17 @@ async function viewLogDetails(logId) {
         document.getElementById('detail-action').textContent = getActionText(log.action);
         document.getElementById('detail-ip').textContent = log.ip_address || '未知';
         document.getElementById('detail-status').innerHTML = `<span class="status-badge ${getStatusClass(log.action)}">${getStatusText(log.action)}</span>`;
-        document.getElementById('detail-content').textContent = log.details || '无详细描述';
+        
+        // 显示描述和详情
+        document.getElementById('detail-content').textContent = log.description || '无描述';
+        
+        // 解析JSON详情
+        try {
+            const detailsObj = JSON.parse(log.details);
+            document.getElementById('detail-request').textContent = JSON.stringify(detailsObj, null, 2);
+        } catch (e) {
+            document.getElementById('detail-request').textContent = log.details || '无详细数据';
+        }
         
         // 显示弹窗
         document.getElementById('logDetailModal').style.display = 'flex';

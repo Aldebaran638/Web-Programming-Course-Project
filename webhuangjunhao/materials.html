@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程资料 - 教师端</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="teacher.css">
+</head>
+<body>
+    <div class="app-shell">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <h2>教师管理端</h2>
+            </div>
+            
+            <div class="user-card">
+                <div class="avatar-icon">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <div class="user-meta">
+                    <div class="user-badge">
+                        <i class="fas fa-certificate"></i> 教师
+                    </div>
+                    <div class="user-name" id="teacherName">张老师</div>
+                    <div class="user-id">ID: <span id="teacherId">T001</span></div>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <li><a href="index.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-home"></i>
+                    <span>首页</span>
+                </a></li>
+                <li><a href="courses.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-book-open"></i>
+                    <span>我的课程</span>
+                </a></li>
+                <li><a href="assignments.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>作业管理</span>
+                </a></li>
+                <li><a href="grades.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-chart-line"></i>
+                    <span>成绩管理</span>
+                </a></li>
+                <li class="active"><a href="materials.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-folder-open"></i>
+                    <span>课程资料</span>
+                </a></li>
+                <li><a href="#" onclick="logout()">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>退出登录</span>
+                </a></li>
+            </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 顶部栏 -->
+            <header class="topbar">
+                <div class="greeting-section">
+                    <h2 class="greeting-text" id="greetingText">上午好！</h2>
+                    <p class="greeting-sub">管理课程资料</p>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn-primary" onclick="showUploadModal()">
+                        <i class="fas fa-upload"></i> 上传资料
+                    </button>
+                </div>
+            </header>
+
+            <!-- 内容区 -->
+            <div class="content-container">
+                <!-- 选择课程 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-book"></i> 选择课程</h3>
+                    </div>
+                    <div class="panel-body">
+                        <select class="select-field" id="courseSelect" onchange="loadMaterials()">
+                            <option value="">请选择课程</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 资料列表 -->
+                <div class="panel" id="materialsPanel" style="display: none;">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-folder-open"></i> 课程资料</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div id="materialsList">
+                            <!-- 资料列表由JS加载 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 上传资料模态框 -->
+    <div class="modal-overlay" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-upload"></i> 上传课程资料</h3>
+                <button class="modal-close" onclick="hideUploadModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label for="materialCourse">课程 *</label>
+                        <select id="materialCourse" class="select-field" required>
+                            <option value="">请选择课程</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="materialTitle">资料标题 *</label>
+                        <input type="text" id="materialTitle" class="input-field" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="materialType">资料类型 *</label>
+                        <select id="materialType" class="select-field" required>
+                            <option value="document">文档</option>
+                            <option value="video">视频</option>
+                            <option value="audio">音频</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="materialFile">上传文件 *</label>
+                        <input type="file" id="materialFile" class="input-field" required>
+                        <small style="color: #9aa0a6; margin-top: 8px; display: block;">支持文档、视频、音频等各类文件</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ghost" onclick="saveMaterialDraft()">
+                    <i class="fas fa-save"></i> 暂存草稿
+                </button>
+                <button class="btn-secondary" onclick="hideUploadModal()">取消</button>
+                <button class="btn-primary" onclick="submitMaterial()">
+                    <i class="fas fa-check"></i> 上传
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="teacher-auth.js"></script>
+    <script src="teacher-api.js"></script>
+    <script>
+        let currentCourseId = null;
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLogin();
+            loadTeachingCourses();
+            loadMaterialDraft(); // 加载暂存的草稿
+        });
+
+        // 加载授课课程
+        async function loadTeachingCourses() {
+            try {
+                const assignments = await getTeachingAssignments();
+                const courseSelect = document.getElementById('courseSelect');
+                const materialCourse = document.getElementById('materialCourse');
+                
+                courseSelect.innerHTML = '<option value="">请选择课程</option>';
+                materialCourse.innerHTML = '<option value="">请选择课程</option>';
+                
+                if (assignments && assignments.length > 0) {
+                    assignments.forEach(assignment => {
+                        const course = assignment.course;
+                        const option = `<option value="${course.id}">${course.course_name} (${assignment.semester})</option>`;
+                        courseSelect.innerHTML += option;
+                        materialCourse.innerHTML += option;
+                    });
+                }
+            } catch (error) {
+                console.error('加载课程失败:', error);
+            }
+        }
+
+        // 加载资料列表
+        async function loadMaterials() {
+            const courseId = document.getElementById('courseSelect').value;
+            const panel = document.getElementById('materialsPanel');
+            const list = document.getElementById('materialsList');
+            
+            if (!courseId) {
+                panel.style.display = 'none';
+                return;
+            }
+            
+            currentCourseId = courseId;
+            panel.style.display = 'block';
+            list.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
+            
+            try {
+                const materials = await getMaterials(courseId);
+                
+                if (!materials || materials.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>暂无资料</p></div>';
+                    return;
+                }
+                
+                list.innerHTML = '';
+                materials.forEach(material => {
+                    const card = document.createElement('div');
+                    card.className = 'material-card';
+                    
+                    // 图标映射
+                    const iconMap = {
+                        'document': 'fa-file-alt',
+                        'video': 'fa-video',
+                        'audio': 'fa-music',
+                        'other': 'fa-file'
+                    };
+                    const icon = iconMap[material.material_type] || 'fa-file';
+                    
+                    card.innerHTML = `
+                        <div class="material-icon">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <div class="material-info">
+                            <h4>${material.title}</h4>
+                            <p class="material-meta">
+                                ${material.description || '无描述'}
+                            </p>
+                            <p class="material-meta">
+                                <i class="fas fa-clock"></i> ${new Date(material.uploaded_at).toLocaleDateString('zh-CN')}
+                            </p>
+                        </div>
+                        <div class="material-actions">
+                            <a href="${material.file_url}" target="_blank" class="btn-sm btn-primary">
+                                <i class="fas fa-external-link-alt"></i> 打开
+                            </a>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+            } catch (error) {
+                console.error('加载资料失败:', error);
+                list.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>加载失败</p></div>';
+            }
+        }
+
+        // 显示上传模态框
+        function showUploadModal() {
+            document.getElementById('uploadModal').classList.add('show');
+        }
+
+        // 隐藏上传模态框
+        function hideUploadModal() {
+            document.getElementById('uploadModal').classList.remove('show');
+        }
+
+        // 提交上传资料
+        async function submitMaterial() {
+            const courseId = document.getElementById('materialCourse').value;
+            const title = document.getElementById('materialTitle').value.trim();
+            const materialType = document.getElementById('materialType').value;
+            const fileInput = document.getElementById('materialFile');
+            const file = fileInput.files[0];
+
+            if (!courseId || !title || !file) {
+                alert('请填写所有必填项并选择文件！');
+                return;
+            }
+
+            // 创建FormData
+            const formData = new FormData();
+            formData.append('material_type', materialType);
+            formData.append('title', title);
+            formData.append('file', file);
+
+            try {
+                // 显示上传中状态
+                const submitBtn = event.target;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
+
+                const token = localStorage.getItem('token');
+                const response = await fetch(`http://127.0.0.1:8000/api/v1/courses/${courseId}/materials`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '上传失败');
+                }
+
+                const result = await response.json();
+                alert('资料上传成功！');
+                hideUploadModal();
+                document.getElementById('uploadForm').reset();
+                clearMaterialDraft(); // 清除草稿
+                
+                // 如果当前选中的课程是上传的课程，刷新列表
+                if (currentCourseId == courseId) {
+                    loadMaterials();
+                }
+            } catch (error) {
+                console.error('上传失败:', error);
+                alert('上传失败：' + error.message);
+            } finally {
+                // 恢复按钮状态
+                const submitBtn = event.target;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-check"></i> 上传';
+                }
+            }
+        }
+
+        // 保存资料草稿
+        function saveMaterialDraft() {
+            const draft = {
+                courseId: document.getElementById('materialCourse').value,
+                title: document.getElementById('materialTitle').value,
+                type: document.getElementById('materialType').value,
+                timestamp: new Date().toISOString()
+            };
+            
+            localStorage.setItem('teacher_material_draft', JSON.stringify(draft));
+            alert('草稿已暂存！');
+        }
+
+        // 加载资料草稿
+        function loadMaterialDraft() {
+            const draftStr = localStorage.getItem('teacher_material_draft');
+            if (draftStr) {
+                try {
+                    const draft = JSON.parse(draftStr);
+                    // 询问是否加载草稿
+                    if (confirm('检测到暂存的资料草稿，是否继续编辑？')) {
+                        setTimeout(() => {
+                            document.getElementById('materialCourse').value = draft.courseId || '';
+                            document.getElementById('materialTitle').value = draft.title || '';
+                            document.getElementById('materialType').value = draft.type || 'document';
+                        }, 500);
+                    }
+                } catch (e) {
+                    console.error('加载草稿失败:', e);
+                }
+            }
+        }
+
+        // 清除资料草稿
+        function clearMaterialDraft() {
+            localStorage.removeItem('teacher_material_draft');
+        }
+    </script>
+
+    <style>
+        .material-card {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .material-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
+        }
+        
+        .material-icon {
+            flex-shrink: 0;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--accent), #b8941f);
+            border-radius: 10px;
+            color: white;
+            font-size: 1.8rem;
+        }
+        
+        .material-info {
+            flex: 1;
+        }
+        
+        .material-info h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text);
+            font-size: 1.1rem;
+        }
+        
+        .material-meta {
+            margin: 0.3rem 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .material-actions {
+            flex-shrink: 0;
+        }
+    </style>
+</body>
+</html>

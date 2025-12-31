@@ -63,8 +63,8 @@
 
                     const role = data.user?.role;
                     if (role === 'teacher') {
-                        // 教师跳转到教师端前端（new.html 为主体页面）
-						window.location.href = '../webhuangjunhao/new.html';
+                        // 教师跳转到教师端前端（index.html 为主体页面）
+						window.location.href = '../webhuangjunhao/index.html';
                     } else if (role === 'student') {
                         // 学生跳转到学生端门户
 							window.location.href = '../Student-Portal/index.html';

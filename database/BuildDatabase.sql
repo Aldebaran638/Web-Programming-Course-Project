@@ -244,7 +244,8 @@ CREATE TABLE `Logs` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `user_id` INT,
   `action` VARCHAR(255) NOT NULL,
-  `details` TEXT,
+  `description` TEXT,  -- 可读的操作描述
+  `details` TEXT,      -- JSON格式的详细数据
   `ip_address` VARCHAR(50),
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`user_id`) REFERENCES `Users`(`id`)

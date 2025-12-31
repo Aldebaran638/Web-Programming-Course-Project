@@ -4,44 +4,105 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>学生主页 - 成绩管理教学平台</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-    <div class="header">
-      <div class="logo">成绩管理系统</div>
-      <div class="nav">
-        <a href="index.html">首页</a>
-        <a href="course-browse.html">浏览课程</a>
-        <a href="my-courses.html">我的课程</a>
-        <a href="grades.html">成绩查询</a>
-        <button onclick="logout()" class="btn-logout">退出</button>
-      </div>
-    </div>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">
+            <i class="fas fa-graduation-cap"></i>
+            <h2>学生工作台</h2>
+          </div>
+        </div>
+        <div class="user-card">
+          <div class="avatar-icon">
+            <i class="fas fa-user-graduate"></i>
+          </div>
+          <div class="user-meta">
+            <div class="user-name" id="studentName">学生</div>
+            <div class="user-id" id="studentIdLabel">ID -</div>
+          </div>
+        </div>
+        <ul class="nav-menu">
+          <li class="active">
+            <a href="index.html"><i class="fas fa-home"></i><span>首页</span></a>
+          </li>
+          <li>
+            <a href="course-browse.html"
+              ><i class="fas fa-book"></i><span>浏览课程</span></a
+            >
+          </li>
+          <li>
+            <a href="my-courses.html"
+              ><i class="fas fa-list-check"></i><span>我的课程</span></a
+            >
+          </li>
+          <li>
+            <a href="grades.html"
+              ><i class="fas fa-chart-line"></i><span>成绩查询</span></a
+            >
+          </li>
+        </ul>
+        <div class="sidebar-footer">
+          <button class="btn-ghost" onclick="logout()">
+            <i class="fas fa-sign-out-alt"></i> 退出登录
+          </button>
+        </div>
+      </aside>
 
-    <div class="container">
-      <h1>欢迎回来，<span id="studentName">学生</span></h1>
-      <div class="quick-links">
-        <div
-          class="link-card"
-          onclick="window.location.href='course-browse.html'"
-        >
-          <h3>浏览课程</h3>
-          <p>选修新课程</p>
-        </div>
-        <div class="link-card" onclick="window.location.href='my-courses.html'">
-          <h3>我的课程</h3>
-          <p>查看已选修课程</p>
-        </div>
-        <div class="link-card" onclick="window.location.href='grades.html'">
-          <h3>成绩查询</h3>
-          <p>查看学期成绩</p>
-        </div>
-      </div>
+      <main class="main-content">
+        <header class="topbar">
+          <div class="topbar-left">
+            <div class="greeting" id="greetingText">早上好，学生</div>
+            <p class="subtitle">欢迎回到成绩管理教学平台</p>
+          </div>
+          <div class="topbar-right">
+            <span class="badge">学生端</span>
+          </div>
+        </header>
 
-      <h2>最新课程</h2>
-      <div class="course-list" id="homeCourseList">
-        <!-- 首页展示的新课程列表 -->
-      </div>
+        <section class="cards-grid">
+          <div class="card" onclick="window.location.href='course-browse.html'">
+            <div class="card-icon"><i class="fas fa-compass"></i></div>
+            <div class="card-body">
+              <h3>浏览课程</h3>
+              <p>发现并选修新课程</p>
+            </div>
+          </div>
+          <div class="card" onclick="window.location.href='my-courses.html'">
+            <div class="card-icon"><i class="fas fa-layer-group"></i></div>
+            <div class="card-body">
+              <h3>我的课程</h3>
+              <p>查看当前选课与任务</p>
+            </div>
+          </div>
+          <div class="card" onclick="window.location.href='grades.html'">
+            <div class="card-icon"><i class="fas fa-award"></i></div>
+            <div class="card-body">
+              <h3>成绩查询</h3>
+              <p>查看成绩总览与详情</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>最新课程</h2>
+              <p class="panel-subtitle">为你推荐的最新课程</p>
+            </div>
+            <a class="link" href="course-browse.html">更多课程<i class="fas fa-arrow-right"></i></a>
+          </div>
+          <div class="course-grid" id="homeCourseList">
+            <!-- 首页展示的新课程列表 -->
+          </div>
+        </section>
+      </main>
     </div>
 
     <script src="js/api.js"></script>

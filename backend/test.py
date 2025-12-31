@@ -243,7 +243,8 @@ class Log(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("Users.id"))
     action = Column(String(255), nullable=False)
-    details = Column(Text)
+    description = Column(Text)  # 可读的操作描述
+    details = Column(Text)  # JSON格式的详细数据
     ip_address = Column(String(50))
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -309,6 +310,113 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _generate_log_description(method: str, path: str, status_code, user_id: Optional[int]) -> str:
+    """生成可读的日志描述"""
+    user_prefix = f"用户{user_id}" if user_id else "匿名用户"
+    
+    # 根据路径和方法生成描述
+    if "/auth/login" in path:
+        if status_code == 200:
+            return f"{user_prefix} 登录成功"
+        else:
+            return f"{user_prefix} 登录失败 (状态码: {status_code})"
+    
+    # 通用路径解析
+    path_descriptions = {
+        "courses": "课程",
+        "assignments": "作业",
+        "materials": "课件",
+        "users": "用户",
+        "enrollments": "选课",
+        "submissions": "作业提交",
+        "grades": "成绩",
+        "teaching-assignments": "教学任务",
+        "semesters": "学期",
+        "backups": "备份",
+    }
+    
+    method_actions = {
+        "POST": "创建",
+        "PUT": "更新",
+        "PATCH": "修改",
+        "DELETE": "删除",
+    }
+    
+    # 查找资源类型
+    resource_type = "资源"
+    for key, value in path_descriptions.items():
+        if key in path:
+            resource_type = value
+            break
+    
+    action = method_actions.get(method, method)
+    
+    if status_code == 200 or status_code == 201:
+        return f"{user_prefix} {action}{resource_type}成功"
+    elif status_code == 401:
+        return f"{user_prefix} {action}{resource_type}失败 - 未授权"
+    elif status_code == 403:
+        return f"{user_prefix} {action}{resource_type}失败 - 权限不足"
+    elif status_code == 404:
+        return f"{user_prefix} {action}{resource_type}失败 - 资源不存在"
+    else:
+        return f"{user_prefix} {action}{resource_type} (状态码: {status_code})"
+
+
+def _safe_log_action(user_id: Optional[int], action: str, description: str, details: str, ip_address: Optional[str] = None) -> None:
+    """Record an operation into Logs table; swallow errors to avoid breaking requests."""
+    session = SessionLocal()
+    try:
+        session.add(Log(user_id=user_id, action=action[:255], description=description, details=details, ip_address=ip_address))
+        session.commit()
+    except Exception:
+        session.rollback()
+    finally:
+        session.close()
+
+
+@app.middleware("http")
+async def audit_non_get_and_login(request: Request, call_next):
+    """Log all non-GET requests (except OPTIONS) and the login endpoint."""
+
+    path = request.url.path
+    method = request.method.upper()
+    
+    # 过滤OPTIONS请求，记录非GET请求或登录请求
+    log_needed = (method != "GET" and method != "OPTIONS") or path.startswith("/api/v1/auth/login")
+    ip_address = request.client.host if request.client else None
+
+    # Try to resolve current user from token without blocking request.
+    user_id: Optional[int] = None
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+        current = active_tokens.get(token)
+        if current:
+            user_id = current.id
+
+    response = None
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        if log_needed:
+            status_code = getattr(response, "status_code", None) or "error"
+            
+            # 生成可读的操作描述
+            description = _generate_log_description(method, path, status_code, user_id)
+            
+            # Avoid consuming body; log only meta data.
+            detail_obj = {
+                "method": method,
+                "path": path,
+                "query": request.url.query,
+                "status": status_code,
+            }
+            details = json.dumps(detail_obj, ensure_ascii=False)
+            _safe_log_action(user_id=user_id, action=f"{method} {path}", description=description, details=details, ip_address=ip_address)
 
 
 @app.exception_handler(SQLAlchemyError)
@@ -1966,6 +2074,66 @@ def delete_course_material(
         material.is_deleted = True
         session.commit()
         return
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/courses/{course_id}/assignments")
+def list_course_assignments(
+    course_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """获取指定课程的所有作业列表（教师用）"""
+    
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以查看作业列表")
+
+    session = SessionLocal()
+    try:
+        # 验证课程存在
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        # 验证教师权限
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以查看本课程作业")
+
+        # 查询作业列表
+        assignments = (
+            session.query(Assignment)
+            .filter(Assignment.course_id == course_id, Assignment.is_deleted == 0)
+            .order_by(Assignment.deadline.desc(), Assignment.created_at.desc())
+            .all()
+        )
+
+        result = []
+        for assignment in assignments:
+            result.append({
+                "id": assignment.id,
+                "course_id": assignment.course_id,
+                "title": assignment.title,
+                "description": assignment.description,
+                "type": assignment.type,
+                "deadline": assignment.deadline.isoformat() + "Z" if assignment.deadline else None,
+                "file_path": assignment.file_path,
+                "created_at": assignment.created_at.isoformat() + "Z" if assignment.created_at else None,
+            })
+
+        return result
     finally:
         session.close()
 

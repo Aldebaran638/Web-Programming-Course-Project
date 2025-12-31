@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程详情 - 教师工作台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="teacher.css">
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    <h2>教师工作台</h2>
+                </div>
+            </div>
+            <div class="user-card">
+                <div class="avatar-icon">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <div class="user-meta">
+                    <div class="user-name" id="teacherName">教师</div>
+                    <div class="user-id" id="teacherId">ID -</div>
+                    <div class="user-badge">
+                        <i class="fas fa-certificate"></i> 授课教师
+                    </div>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <li><a href="index.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-home"></i>
+                    <span>首页</span>
+                </a></li>
+                <li class="active"><a href="courses.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-book-open"></i>
+                    <span>课程管理</span>
+                </a></li>
+                <li><a href="assignments.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>作业考试</span>
+                </a></li>
+                <li><a href="grades.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-chart-line"></i>
+                    <span>成绩管理</span>
+                </a></li>
+                <li><a href="materials.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-folder-open"></i>
+                    <span>课程资料</span>
+                </a></li>
+                <li><a href="#" onclick="logout()">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>退出登录</span>
+                </a></li>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="greeting-section">
+                    <button class="btn-ghost" onclick="history.back()">
+                        <i class="fas fa-arrow-left"></i> 返回
+                    </button>
+                    <h2 class="greeting-text" id="courseName">课程详情</h2>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn-secondary" onclick="editCourse()">
+                        <i class="fas fa-edit"></i> 编辑课程
+                    </button>
+                    <button class="btn-primary" onclick="manageMaterials()">
+                        <i class="fas fa-folder"></i> 课程资料
+                    </button>
+                </div>
+            </header>
+
+            <div class="content-container">
+                <!-- 课程基本信息 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-info-circle"></i> 课程信息</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label>课程编号</label>
+                                <div class="detail-value" id="courseCode">-</div>
+                            </div>
+                            <div class="detail-item">
+                                <label>学分</label>
+                                <div class="detail-value" id="courseCredits">-</div>
+                            </div>
+                            <div class="detail-item">
+                                <label>院系</label>
+                                <div class="detail-value" id="courseDepartment">-</div>
+                            </div>
+                            <div class="detail-item">
+                                <label>学期</label>
+                                <div class="detail-value" id="courseSemester">-</div>
+                            </div>
+                            <div class="detail-item full">
+                                <label>课程简介</label>
+                                <div class="detail-value" id="courseDescription">暂无描述</div>
+                            </div>
+                            <div class="detail-item full">
+                                <label>先修课程</label>
+                                <div class="detail-value" id="coursePrerequisites">无</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 统计卡片 -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="enrollmentCount">0</div>
+                            <div class="stat-label">选课人数</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="assignmentCount">0</div>
+                            <div class="stat-label">作业/考试</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-folder"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="materialCount">0</div>
+                            <div class="stat-label">课程资料</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="avgGrade">-</div>
+                            <div class="stat-label">平均成绩</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 学生名单 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-users"></i> 选课学生</h3>
+                        <button class="btn-sm btn-primary" onclick="exportStudentList()">
+                            <i class="fas fa-download"></i> 导出名单
+                        </button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>学号</th>
+                                        <th>姓名</th>
+                                        <th>班级</th>
+                                        <th>选课时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentList">
+                                    <tr class="empty-state-row">
+                                        <td colspan="5">
+                                            <i class="fas fa-spinner fa-spin"></i> 加载中...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="teacher-auth.js"></script>
+    <script src="teacher-api.js"></script>
+    <script>
+        let courseId = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLogin();
+            
+            // 从URL参数获取课程ID
+            const urlParams = new URLSearchParams(window.location.search);
+            courseId = urlParams.get('id');
+            
+            if (!courseId) {
+                alert('缺少课程ID');
+                window.location.href = 'courses.html';
+                return;
+            }
+            
+            loadCourseDetail();
+            loadEnrollments();
+        });
+
+        async function loadCourseDetail() {
+            try {
+                // 获取教师授课课程列表
+                const assignments = await getTeachingAssignments();
+                const assignment = assignments.find(a => a.course.id == courseId);
+                
+                if (!assignment) {
+                    alert('未找到该课程');
+                    window.location.href = 'courses.html';
+                    return;
+                }
+                
+                const course = assignment.course;
+                
+                // 填充页面信息
+                document.getElementById('courseName').textContent = course.course_name;
+                document.getElementById('courseCode').textContent = course.course_code;
+                document.getElementById('courseCredits').textContent = course.credits + ' 学分';
+                document.getElementById('courseDepartment').textContent = course.department || '未指定';
+                document.getElementById('courseSemester').textContent = assignment.semester;
+                document.getElementById('courseDescription').textContent = course.description || '暂无描述';
+                document.getElementById('coursePrerequisites').textContent = course.prerequisites || '无';
+                
+                // 加载统计信息
+                loadStats();
+            } catch (error) {
+                console.error('加载课程详情失败:', error);
+                alert('加载失败');
+            }
+        }
+
+        async function loadStats() {
+            try {
+                // 这里可以调用API获取统计信息
+                // 暂时显示占位数据
+                document.getElementById('enrollmentCount').textContent = '-';
+                document.getElementById('assignmentCount').textContent = '-';
+                document.getElementById('materialCount').textContent = '-';
+                document.getElementById('avgGrade').textContent = '-';
+            } catch (error) {
+                console.error('加载统计信息失败:', error);
+            }
+        }
+
+        async function loadEnrollments() {
+            const tbody = document.getElementById('studentList');
+            try {
+                // TODO: 调用API获取选课学生列表
+                // 暂时显示提示
+                tbody.innerHTML = `
+                    <tr class="empty-state-row">
+                        <td colspan="5">
+                            <i class="fas fa-info-circle"></i> 暂无选课学生
+                        </td>
+                    </tr>
+                `;
+            } catch (error) {
+                console.error('加载学生列表失败:', error);
+                tbody.innerHTML = `
+                    <tr class="empty-state-row">
+                        <td colspan="5">
+                            <i class="fas fa-exclamation-triangle"></i> 加载失败
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function editCourse() {
+            alert('编辑课程功能开发中');
+        }
+
+        function manageMaterials() {
+            window.location.href = `materials.html?course_id=${courseId}`;
+        }
+
+        function exportStudentList() {
+            alert('导出名单功能开发中');
+        }
+    </script>
+</body>
+</html>

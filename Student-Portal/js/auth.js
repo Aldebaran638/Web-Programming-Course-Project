@@ -73,5 +73,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const user = checkLogin();
     if (user && document.getElementById('studentName')) {
         document.getElementById('studentName').textContent = "学生" + user.username;
+        const idLabel = document.getElementById('studentIdLabel');
+        if (idLabel) idLabel.textContent = `ID ${user.id ?? '-'}`;
+        const greet = document.getElementById('greetingText');
+        if (greet) greet.textContent = `${getGreeting()}, ${user.username}`;
     }
 });
+
+function getGreeting() {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 9) return '早上好';
+    if (hour >= 9 && hour < 12) return '上午好';
+    if (hour >= 12 && hour < 18) return '下午好';
+    return '晚上好';
+}

@@ -76,20 +76,36 @@ function displayMyCourses(courses) {
     if (!courseList) return;
     
     courseList.innerHTML = '';
+    
+    if (!courses || courses.length === 0) {
+        courseList.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>暂无已选课程</p></div>';
+        return;
+    }
+    
     courses.forEach(course => {
-        const courseItem = document.createElement('div');
-        courseItem.className = 'my-course-item';
-        courseItem.innerHTML = `
-            <div>
-                <h3>${course.course.course_name}</h3>
-                <p class="course-meta">教师：${course.course.teachers[0]?.full_name || '未指定'}</p>
-                <p class="course-meta">学期：${course.semester}</p>
+        const courseCard = document.createElement('div');
+        courseCard.className = 'course-card';
+        courseCard.innerHTML = `
+            <div class="course-cover">
+                <i class="fas fa-book-open"></i>
             </div>
-            <button class="btn-study" onclick="viewCourseDetail(${course.enrollment_id})">
-                详情
-            </button>
+            <div class="course-info-box">
+                <h3>${course.course.course_name}</h3>
+                <p class="course-meta">
+                    <i class="fas fa-chalkboard-teacher"></i> 
+                    ${course.course.teachers && course.course.teachers[0] ? course.course.teachers[0].full_name : '未指定'}
+                </p>
+                <p class="course-meta">
+                    <i class="fas fa-calendar"></i> ${course.semester}
+                </p>
+            </div>
+            <div class="course-actions">
+                <button class="btn-primary btn-sm" onclick="viewCourseDetail(${course.enrollment_id})">
+                    <i class="fas fa-arrow-right"></i> 进入学习
+                </button>
+            </div>
         `;
-        courseList.appendChild(courseItem);
+        courseList.appendChild(courseCard);
     });
 }
 
@@ -128,18 +144,20 @@ function showWithdrawModal(courseId, courseName) {
     selectedCourseId = courseId;
     selectedAction = 'withdraw';
     document.getElementById('modalCourseName').textContent = `确定要取消选修《${courseName}》吗？`;
-    document.getElementById('enrollModal').style.display = 'flex';
+    document.getElementById('enrollModal').classList.add('show');
 }
 
 function showEnrollModal(courseId, courseName) {
     selectedCourseId = courseId;
     selectedAction = 'enroll';
     document.getElementById('modalCourseName').textContent = `确定要选修《${courseName}》吗？`;
-    document.getElementById('enrollModal').style.display = 'flex';
+    document.getElementById('enrollModal').classList.add('show');
 }
 
 function closeModal() {
-    document.getElementById('enrollModal').style.display = 'none';
+    const modal = document.getElementById('enrollModal');
+    modal.classList.remove('show');
+    modal.style.display = ''; // 清除内联样式
 }
 
 async function confirmEnroll() {
@@ -172,7 +190,10 @@ async function confirmEnroll() {
 
 // 我的课程页面功能
 async function loadMyCourses() {
-    const courses = await getMyCourses(semester);
+    const semesterFilter = document.getElementById('semesterFilter');
+    const selectedSemester = semesterFilter ? semesterFilter.value : '';
+    
+    const courses = await getMyCourses(selectedSemester);
     
     if (courses && Array.isArray(courses)) {
         displayMyCourses(courses);
@@ -260,11 +281,64 @@ async function loadMaterials() {
         card.appendChild(meta);
 
         if (item.file_path_or_content) {
-            const link = document.createElement('a');
-            link.href = item.file_path_or_content;
-            link.textContent = '下载/查看资料';
-            link.target = '_blank';
-            card.appendChild(link);
+            // 根据文件类型显示预览或下载按钮
+            const fileUrl = item.file_path_or_content;
+            const fileType = item.material_type || '';
+            
+            // 创建预览容器
+            const previewContainer = document.createElement('div');
+            previewContainer.className = 'material-preview';
+            
+            // 图片预览
+            if (fileType.includes('image') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fileUrl)) {
+                const img = document.createElement('img');
+                img.src = fileUrl;
+                img.alt = item.title;
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '300px';
+                img.style.marginTop = '10px';
+                img.style.borderRadius = '4px';
+                img.style.cursor = 'pointer';
+                img.onclick = () => window.open(fileUrl, '_blank');
+                previewContainer.appendChild(img);
+            }
+            // 视频预览
+            else if (fileType.includes('video') || /\.(mp4|webm|ogg|avi|mov)$/i.test(fileUrl)) {
+                const video = document.createElement('video');
+                video.src = fileUrl;
+                video.controls = true;
+                video.style.maxWidth = '100%';
+                video.style.maxHeight = '300px';
+                video.style.marginTop = '10px';
+                video.style.borderRadius = '4px';
+                previewContainer.appendChild(video);
+            }
+            // 音频预览
+            else if (fileType.includes('audio') || /\.(mp3|wav|ogg|m4a|flac)$/i.test(fileUrl)) {
+                const audio = document.createElement('audio');
+                audio.src = fileUrl;
+                audio.controls = true;
+                audio.style.width = '100%';
+                audio.style.marginTop = '10px';
+                previewContainer.appendChild(audio);
+            }
+            
+            card.appendChild(previewContainer);
+            
+            // 创建下载按钮
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'btn btn-primary';
+            downloadBtn.style.marginTop = '10px';
+            downloadBtn.innerHTML = '<i class="fas fa-download"></i> 下载资料';
+            downloadBtn.onclick = () => {
+                const a = document.createElement('a');
+                a.href = fileUrl;
+                a.download = item.title || 'material';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+            card.appendChild(downloadBtn);
         }
 
         container.appendChild(card);
@@ -274,12 +348,12 @@ async function loadMaterials() {
 function filterTasks(status) {
     currentFilter = status;
     // 更新按钮状态
-    document.querySelectorAll('.filter-btn').forEach(btn => {
+    document.querySelectorAll('.filter-chip').forEach(btn => {
         btn.classList.remove('active');
     });
 
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        if (btn.name === status)
+    document.querySelectorAll('.filter-chip').forEach(btn => {
+        if (btn.getAttribute('data-filter') === status)
             btn.classList.add('active');
     });
     
@@ -327,11 +401,11 @@ function showTaskModal(task) {
         completeBtn.style.display = 'block';
     }
     
-    document.getElementById('taskModal').style.display = 'flex';
+    document.getElementById('taskModal').classList.add('show');
 }
 
 function closeTaskModal() {
-    document.getElementById('taskModal').style.display = 'none';
+    document.getElementById('taskModal').classList.remove('show');
 }
 
 function markTaskComplete() {
@@ -399,16 +473,72 @@ function showAssignmentModal(assignment) {
         <p>成绩：${assignment.score != null ? assignment.score : '-'}</p>
     `;
 
-    // 清空上次输入
-    document.getElementById('assignmentText').value = '';
-    const fileInput = document.getElementById('assignmentFile');
-    if (fileInput) fileInput.value = '';
+    // 尝试加载草稿
+    loadAssignmentDraft(assignment.assignment_id);
 
-    document.getElementById('assignmentModal').style.display = 'flex';
+    document.getElementById('assignmentModal').classList.add('show');
 }
 
 function closeAssignmentModal() {
-    document.getElementById('assignmentModal').style.display = 'none';
+    document.getElementById('assignmentModal').classList.remove('show');
+}
+
+// 保存作业草稿
+function saveDraft() {
+    if (!currentAssignment) return;
+    
+    const text = document.getElementById('assignmentText').value;
+    const draft = {
+        content: text,
+        timestamp: new Date().toISOString()
+    };
+    
+    localStorage.setItem(`draft_assignment_${currentAssignment.assignment_id}`, JSON.stringify(draft));
+    showMessage('草稿已保存', 'success');
+}
+
+// 加载作业草稿
+function loadAssignmentDraft(assignmentId) {
+    const draftKey = `draft_assignment_${assignmentId}`;
+    const draft = localStorage.getItem(draftKey);
+    
+    if (draft) {
+        try {
+            const draftData = JSON.parse(draft);
+            document.getElementById('assignmentText').value = draftData.content || '';
+            
+            // 显示草稿提示
+            const infoDiv = document.getElementById('assignmentInfo');
+            const draftTime = new Date(draftData.timestamp).toLocaleString('zh-CN');
+            infoDiv.innerHTML += `
+                <p style="color: #f39c12;">
+                    <i class="fas fa-info-circle"></i> 
+                    已加载草稿（保存于 ${draftTime}）
+                    <button onclick="clearAssignmentDraft(${assignmentId})" style="margin-left:10px;font-size:0.9rem;padding:2px 8px;border:none;background:#e74c3c;color:white;border-radius:4px;cursor:pointer;">清除草稿</button>
+                </p>
+            `;
+        } catch (e) {
+            console.error('加载草稿失败:', e);
+        }
+    } else {
+        // 清空输入
+        document.getElementById('assignmentText').value = '';
+        const fileInput = document.getElementById('assignmentFile');
+        if (fileInput) fileInput.value = '';
+    }
+}
+
+// 清除作业草稿
+function clearAssignmentDraft(assignmentId) {
+    localStorage.removeItem(`draft_assignment_${assignmentId}`);
+    document.getElementById('assignmentText').value = '';
+    showMessage('草稿已清除', 'info');
+    
+    // 刷新模态框显示
+    if (currentAssignment && currentAssignment.assignment_id === assignmentId) {
+        closeAssignmentModal();
+        setTimeout(() => showAssignmentModal(currentAssignment), 100);
+    }
 }
 
 async function submitAssignment() {
@@ -434,6 +564,8 @@ async function submitAssignment() {
     const result = await submitAssignmentRequest(currentAssignment.assignment_id, formData);
     if (result && result.submission_id) {
         showMessage('作业提交成功', 'success');
+        // 提交成功后清除草稿
+        localStorage.removeItem(`draft_assignment_${currentAssignment.assignment_id}`);
         closeAssignmentModal();
         loadAssignments();
     } else {

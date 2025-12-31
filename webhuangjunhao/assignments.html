@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作业管理 - 教师端</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="teacher.css">
+</head>
+<body>
+    <div class="app-shell">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <h2>教师管理端</h2>
+            </div>
+            
+            <div class="user-card">
+                <div class="avatar-icon">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <div class="user-meta">
+                    <div class="user-badge">
+                        <i class="fas fa-certificate"></i> 教师
+                    </div>
+                    <div class="user-name" id="teacherName">张老师</div>
+                    <div class="user-id">ID: <span id="teacherId">T001</span></div>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <li><a href="index.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-home"></i>
+                    <span>首页</span>
+                </a></li>
+                <li><a href="courses.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-book-open"></i>
+                    <span>我的课程</span>
+                </a></li>
+                <li class="active"><a href="assignments.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>作业管理</span>
+                </a></li>
+                <li><a href="grades.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-chart-line"></i>
+                    <span>成绩管理</span>
+                </a></li>
+                <li><a href="materials.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-folder-open"></i>
+                    <span>课程资料</span>
+                </a></li>
+                <li><a href="#" onclick="logout()">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>退出登录</span>
+                </a></li>
+            </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 顶部栏 -->
+            <header class="topbar">
+                <div class="greeting-section">
+                    <h2 class="greeting-text" id="greetingText">上午好！</h2>
+                    <p class="greeting-sub">管理课程作业与批改</p>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn-primary" onclick="showCreateAssignmentModal()">
+                        <i class="fas fa-plus"></i> 布置新作业
+                    </button>
+                </div>
+            </header>
+
+            <!-- 内容区 -->
+            <div class="content-container">
+                <!-- 选择课程 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-book"></i> 选择课程</h3>
+                    </div>
+                    <div class="panel-body">
+                        <select class="select-field" id="courseSelect" onchange="loadAssignments()">
+                            <option value="">请选择课程</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 作业列表 -->
+                <div class="panel" id="assignmentsPanel" style="display: none;">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-clipboard-list"></i> 作业列表</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div id="assignmentsList" class="courses-grid">
+                            <!-- 作业列表由JS加载 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 创建作业模态框 -->
+    <div class="modal-overlay" id="createAssignmentModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus-circle"></i> 布置新作业</h3>
+                <button class="modal-close" onclick="hideCreateAssignmentModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="createAssignmentForm">
+                    <div class="form-group">
+                        <label for="assignmentCourse">课程 *</label>
+                        <select id="assignmentCourse" class="select-field" required>
+                            <option value="">请选择课程</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="assignmentTitle">作业标题 *</label>
+                        <input type="text" id="assignmentTitle" class="input-field" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="assignmentDescription">作业描述</label>
+                        <textarea id="assignmentDescription" class="textarea-field" rows="4"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="dueDate">截止日期 *</label>
+                            <input type="datetime-local" id="dueDate" class="input-field" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="maxScore">总分 *</label>
+                            <input type="number" id="maxScore" class="input-field" min="0" value="100" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="attachmentUrl">附件链接</label>
+                        <input type="url" id="attachmentUrl" class="input-field" placeholder="https://...">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="hideCreateAssignmentModal()">取消</button>
+                <button class="btn-primary" onclick="submitAssignment()">
+                    <i class="fas fa-check"></i> 发布作业
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 查看提交模态框 -->
+    <div class="modal-overlay" id="submissionsModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3><i class="fas fa-file-alt"></i> 学生提交</h3>
+                <button class="modal-close" onclick="hideSubmissionsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="submissionsList">
+                    <!-- 提交列表由JS加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批改模态框 -->
+    <div class="modal-overlay" id="gradeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> 批改作业</h3>
+                <button class="modal-close" onclick="hideGradeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="submissionDetail"></div>
+                <form id="gradeForm">
+                    <div class="form-group">
+                        <label for="score">分数 *</label>
+                        <input type="number" id="score" class="input-field" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="feedback">评语</label>
+                        <textarea id="feedback" class="textarea-field" rows="4"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="hideGradeModal()">取消</button>
+                <button class="btn-primary" onclick="submitGrade()">
+                    <i class="fas fa-check"></i> 提交批改
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="teacher-auth.js"></script>
+    <script src="teacher-api.js"></script>
+    <script>
+        let currentCourses = [];
+        let currentAssignmentId = null;
+        let currentSubmissionId = null;
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLogin();
+            loadTeachingCourses();
+        });
+
+        // 加载授课课程
+        async function loadTeachingCourses() {
+            try {
+                const assignments = await getTeachingAssignments();
+                currentCourses = assignments || [];
+                
+                const courseSelect = document.getElementById('courseSelect');
+                const assignmentCourse = document.getElementById('assignmentCourse');
+                
+                courseSelect.innerHTML = '<option value="">请选择课程</option>';
+                assignmentCourse.innerHTML = '<option value="">请选择课程</option>';
+                
+                currentCourses.forEach(assignment => {
+                    const course = assignment.course;
+                    const option = `<option value="${course.id}">${course.course_name} (${assignment.semester})</option>`;
+                    courseSelect.innerHTML += option;
+                    assignmentCourse.innerHTML += option;
+                });
+            } catch (error) {
+                console.error('加载课程失败:', error);
+            }
+        }
+
+        // 加载作业列表
+        async function loadAssignments() {
+            const courseId = document.getElementById('courseSelect').value;
+            const panel = document.getElementById('assignmentsPanel');
+            const list = document.getElementById('assignmentsList');
+            
+            if (!courseId) {
+                panel.style.display = 'none';
+                return;
+            }
+            
+            panel.style.display = 'block';
+            
+            try {
+                const assignments = await getAssignments(courseId);
+                
+                if (!assignments || assignments.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>暂无作业</p></div>';
+                    return;
+                }
+                
+                list.innerHTML = '';
+                assignments.forEach(assignment => {
+                    const card = document.createElement('div');
+                    card.className = 'course-item-card assignment-item-card';
+                    
+                    // 判断作业类型图标
+                    const typeIcon = assignment.type === 'exam' ? 'fa-pen-to-square' : 'fa-clipboard-list';
+                    const typeText = assignment.type === 'exam' ? '考试' : '作业';
+                    const deadlineDate = assignment.deadline ? new Date(assignment.deadline) : null;
+                    const isOverdue = deadlineDate && deadlineDate < new Date();
+                    
+                    card.innerHTML = `
+                        <div class="course-card-header">
+                            <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                                <i class="fas ${typeIcon}" style="font-size: 1.5rem; color: var(--accent-2);"></i>
+                                <h4 style="margin: 0;">${assignment.title}</h4>
+                            </div>
+                            <span class="course-badge ${isOverdue ? 'badge-warning' : ''}">${typeText}</span>
+                        </div>
+                        <div class="course-card-body">
+                            <p style="color: var(--text-secondary); margin-bottom: 12px; line-height: 1.6;">
+                                ${assignment.description || '无描述'}
+                            </p>
+                            <p class="course-meta">
+                                <i class="fas fa-calendar"></i> 
+                                ${deadlineDate ? '截止: ' + deadlineDate.toLocaleString('zh-CN') : '无截止时间'}
+                            </p>
+                            <p class="course-meta">
+                                <i class="fas fa-clock"></i> 
+                                创建于 ${assignment.created_at ? new Date(assignment.created_at).toLocaleDateString('zh-CN') : '-'}
+                            </p>
+                        </div>
+                        <div class="course-card-footer">
+                            <button class="btn-sm btn-primary" onclick="viewSubmissions(${assignment.id})">
+                                <i class="fas fa-eye"></i> 查看提交
+                            </button>
+                            <button class="btn-sm btn-secondary" onclick="editAssignment(${assignment.id})">
+                                <i class="fas fa-edit"></i> 编辑
+                            </button>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+            } catch (error) {
+                console.error('加载作业失败:', error);
+                list.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>加载失败</p></div>';
+            }
+        }
+
+        // 显示创建作业模态框
+        function showCreateAssignmentModal() {
+            document.getElementById('createAssignmentModal').classList.add('show');
+        }
+
+        // 隐藏创建作业模态框
+        function hideCreateAssignmentModal() {
+            document.getElementById('createAssignmentModal').classList.remove('show');
+        }
+
+        // 提交创建作业
+        async function submitAssignment() {
+            const courseId = document.getElementById('assignmentCourse').value;
+            const assignmentData = {
+                title: document.getElementById('assignmentTitle').value.trim(),
+                description: document.getElementById('assignmentDescription').value.trim() || null,
+                type: 'assignment', // 后端需要type字段，值为'assignment'或'exam'
+                deadline: document.getElementById('dueDate').value,
+                file_path: document.getElementById('attachmentUrl').value.trim() || null
+            };
+
+            if (!courseId || !assignmentData.title || !assignmentData.deadline) {
+                alert('请填写必填项！');
+                return;
+            }
+
+            try {
+                const result = await createAssignment(courseId, assignmentData);
+                if (result) {
+                    alert('作业发布成功！');
+                    hideCreateAssignmentModal();
+                    document.getElementById('createAssignmentForm').reset();
+                    loadAssignments();
+                }
+            } catch (error) {
+                alert('发布失败：' + (error.message || '请检查网络连接'));
+            }
+        }
+
+        // 查看提交
+        async function viewSubmissions(assignmentId) {
+            currentAssignmentId = assignmentId;
+            const modal = document.getElementById('submissionsModal');
+            const list = document.getElementById('submissionsList');
+            
+            modal.classList.add('show');
+            list.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
+            
+            try {
+                const submissions = await getSubmissions(assignmentId);
+                
+                if (!submissions || submissions.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>暂无提交</p></div>';
+                    return;
+                }
+                
+                list.innerHTML = '';
+                submissions.forEach(submission => {
+                    const card = document.createElement('div');
+                    card.className = 'submission-card';
+                    card.innerHTML = `
+                        <div class="submission-header">
+                            <div>
+                                <h4>${submission.student_name || '学生'}</h4>
+                                <p class="submission-meta">提交时间: ${new Date(submission.submitted_at).toLocaleString('zh-CN')}</p>
+                            </div>
+                            ${submission.score !== null ? 
+                                `<span class="grade-badge">${submission.score}分</span>` : 
+                                '<span class="grade-badge pending">待批改</span>'
+                            }
+                        </div>
+                        <div class="submission-body">
+                            <p>${submission.content || '无内容'}</p>
+                            ${submission.attachment_url ? 
+                                `<a href="${submission.attachment_url}" target="_blank" class="attachment-link">
+                                    <i class="fas fa-paperclip"></i> 查看附件
+                                </a>` : ''
+                            }
+                        </div>
+                        <div class="submission-footer">
+                            <button class="btn-sm btn-primary" onclick="gradeSubmission(${submission.id}, ${submission.score || 0})">
+                                <i class="fas fa-edit"></i> ${submission.score !== null ? '修改批改' : '批改'}
+                            </button>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+            } catch (error) {
+                console.error('加载提交失败:', error);
+                list.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>加载失败</p></div>';
+            }
+        }
+
+        // 编辑作业
+        function editAssignment(assignmentId) {
+            alert('编辑作业功能开发中，作业ID: ' + assignmentId);
+            // TODO: 实现编辑作业功能
+        }
+
+        // 隐藏提交模态框
+        function hideSubmissionsModal() {
+            document.getElementById('submissionsModal').classList.remove('show');
+        }
+
+        // 批改作业
+        function gradeSubmission(submissionId, currentScore) {
+            currentSubmissionId = submissionId;
+            document.getElementById('score').value = currentScore || '';
+            document.getElementById('gradeModal').classList.add('show');
+        }
+
+        // 隐藏批改模态框
+        function hideGradeModal() {
+            document.getElementById('gradeModal').classList.remove('show');
+        }
+
+        // 提交批改
+        async function submitGrade() {
+            const score = parseFloat(document.getElementById('score').value);
+            const feedback = document.getElementById('feedback').value.trim();
+
+            if (isNaN(score)) {
+                alert('请输入有效分数！');
+                return;
+            }
+
+            try {
+                const result = await gradeSubmission(currentSubmissionId, { score, feedback });
+                if (result) {
+                    alert('批改提交成功！');
+                    hideGradeModal();
+                    document.getElementById('gradeForm').reset();
+                    viewSubmissions(currentAssignmentId);
+                }
+            } catch (error) {
+                alert('提交失败：' + error.message);
+            }
+        }
+    </script>
+    
+    <style>
+        /* 作业卡片额外样式 */
+        .assignment-item-card {
+            transition: all 0.3s ease;
+        }
+
+        .assignment-item-card:hover {
+            box-shadow: 0 12px 32px rgba(99, 102, 241, 0.25);
+        }
+
+        .badge-warning {
+            background: linear-gradient(135deg, #fbbc04, #ea4335) !important;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .info-box i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+        }
+        
+        .info-box p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+    </style>
+</body>
+</html>

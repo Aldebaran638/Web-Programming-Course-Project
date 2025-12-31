@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成绩管理 - 教师端</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="teacher.css">
+</head>
+<body>
+    <div class="app-shell">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <h2>教师管理端</h2>
+            </div>
+            
+            <div class="user-card">
+                <div class="avatar-icon">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <div class="user-meta">
+                    <div class="user-badge">
+                        <i class="fas fa-certificate"></i> 教师
+                    </div>
+                    <div class="user-name" id="teacherName">张老师</div>
+                    <div class="user-id">ID: <span id="teacherId">T001</span></div>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <li><a href="index.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-home"></i>
+                    <span>首页</span>
+                </a></li>
+                <li><a href="courses.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-book-open"></i>
+                    <span>我的课程</span>
+                </a></li>
+                <li><a href="assignments.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>作业管理</span>
+                </a></li>
+                <li class="active"><a href="grades.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-chart-line"></i>
+                    <span>成绩管理</span>
+                </a></li>
+                <li><a href="materials.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-folder-open"></i>
+                    <span>课程资料</span>
+                </a></li>
+                <li><a href="#" onclick="logout()">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>退出登录</span>
+                </a></li>
+            </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 顶部栏 -->
+            <header class="topbar">
+                <div class="greeting-section">
+                    <h2 class="greeting-text" id="greetingText">上午好！</h2>
+                    <p class="greeting-sub">管理课程成绩</p>
+                </div>
+            </header>
+
+            <!-- 内容区 -->
+            <div class="content-container">
+                <!-- 第一部分：批量设置成绩构成 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-cogs"></i> 第一步：设置成绩构成</h3>
+                        <p style="font-size: 0.9rem; color: #666; margin: 0;">一次性设置全部成绩项目及权重</p>
+                    </div>
+                    <div class="panel-body">
+                        <select class="select-field" id="courseSelectItems" onchange="loadOrInitGradeItems()">
+                            <option value="">请选择课程</option>
+                        </select>
+                        
+                        <div id="gradeItemsSetup" style="display: none; margin-top: 20px;">
+                            <div id="itemsContainer" style="margin-bottom: 15px;">
+                                <!-- 成绩项输入框将由JS动态生成 -->
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn-secondary" onclick="addGradeItemRow()">
+                                    <i class="fas fa-plus"></i> 添加一项
+                                </button>
+                                <button class="btn-primary" onclick="saveAllGradeItems()">
+                                    <i class="fas fa-save"></i> 保存全部成绩项
+                                </button>
+                            </div>
+                            <p style="margin-top: 10px; font-size: 0.85rem; color: #999;">
+                                提示：所有权重总和必须等于100%
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 第二部分：学生成绩录入 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-edit"></i> 第二步：录入学生成绩</h3>
+                        <p style="font-size: 0.9rem; color: #666; margin: 0;">选择课程进入学生成绩录入界面</p>
+                    </div>
+                    <div class="panel-body">
+                        <div id="coursesForGrading">
+                            <!-- 课程卡片由JS加载 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 学生成绩录入模态框 -->
+    <div class="modal-overlay" id="gradeEntryModal">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3><i class="fas fa-table"></i> <span id="modalCourseName"></span> - 成绩录入</h3>
+                <button class="modal-close" onclick="hideGradeEntryModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- CSV批量导入区域 -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #f5f7fa; border-radius: 8px;">
+                    <h4 style="margin-bottom: 10px;"><i class="fas fa-file-upload"></i> 批量导入成绩</h4>
+                    <input type="file" id="csvFileInput" accept=".csv,.xlsx" style="margin-bottom: 10px;">
+                    <button class="btn-primary btn-sm" onclick="importGradesFromCSV()">
+                        <i class="fas fa-upload"></i> 导入CSV/Excel
+                    </button>
+                    <p style="margin-top: 8px; font-size: 0.85rem; color: #666;">
+                        CSV格式：第一行为标题（学号,姓名,成绩项1,成绩项2...），后续行为数据
+                    </p>
+                </div>
+
+                <!-- 学生成绩表格 -->
+                <div style="overflow-x: auto;">
+                    <table id="gradesTable" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #3498db; color: white;">
+                                <th style="padding: 10px; text-align: left;">学号</th>
+                                <th style="padding: 10px; text-align: left;">姓名</th>
+                                <!-- 成绩项列由JS动态生成 -->
+                            </tr>
+                        </thead>
+                        <tbody id="gradesTableBody">
+                            <!-- 学生成绩行由JS加载 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="hideGradeEntryModal()">关闭</button>
+                <button class="btn-primary" onclick="saveAllGrades()">
+                    <i class="fas fa-save"></i> 保存所有成绩
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="teacher-auth.js"></script>
+    <script src="teacher-api.js"></script>
+    <script>
+        let currentCourseIdItems = null;
+        let currentCourseIdGrading = null;
+        let gradeItemsCache = [];
+        let enrollmentsCache = [];
+        let gradesCache = new Map(); // Map<enrollmentId_itemId, gradeValue>
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLogin();
+            loadTeachingCourses();
+        });
+
+        // 加载授课课程
+        async function loadTeachingCourses() {
+            try {
+                const assignments = await getTeachingAssignments();
+                const courseSelect1 = document.getElementById('courseSelectItems');
+                const coursesForGrading = document.getElementById('coursesForGrading');
+                
+                courseSelect1.innerHTML = '<option value="">请选择课程</option>';
+                coursesForGrading.innerHTML = '';
+                
+                if (assignments && assignments.length > 0) {
+                    assignments.forEach(assignment => {
+                        const course = assignment.course;
+                        // 第一部分：成绩项设置下拉框
+                        courseSelect1.innerHTML += `<option value="${course.id}">${course.course_name} (${assignment.semester})</option>`;
+                        
+                        // 第二部分：课程卡片
+                        const card = document.createElement('div');
+                        card.className = 'course-card';
+                        card.style.cssText = 'padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; cursor: pointer; transition: transform 0.2s;';
+                        card.innerHTML = `
+                            <h4 style="margin: 0 0 8px 0; color: #2c3e50;">${course.course_name}</h4>
+                            <p style="margin: 0; color: #666; font-size: 0.9rem;">学期：${assignment.semester}</p>
+                        `;
+                        card.onmouseover = () => card.style.transform = 'translateY(-2px)';
+                        card.onmouseout = () => card.style.transform = 'translateY(0)';
+                        card.onclick = () => openGradeEntryModal(course.id, course.course_name);
+                        coursesForGrading.appendChild(card);
+                    });
+                }
+            } catch (error) {
+                console.error('加载课程失败:', error);
+            }
+        }
+
+        // ========== 第一部分：批量设置成绩项 ==========
+        
+        async function loadOrInitGradeItems() {
+            const courseId = document.getElementById('courseSelectItems').value;
+            const setup = document.getElementById('gradeItemsSetup');
+            
+            if (!courseId) {
+                setup.style.display = 'none';
+                return;
+            }
+            
+            currentCourseIdItems = courseId;
+            setup.style.display = 'block';
+            
+            // 尝试加载已有成绩项
+            try {
+                const items = await apiRequest(`/courses/${courseId}/grade-items`);
+                if (items && items.length > 0) {
+                    gradeItemsCache = items;
+                    renderGradeItemRows(items);
+                } else {
+                    // 如果没有成绩项，初始化3个空行
+                    renderGradeItemRows([
+                        { item_name: '', weight: '' },
+                        { item_name: '', weight: '' },
+                        { item_name: '', weight: '' }
+                    ]);
+                }
+            } catch (error) {
+                console.error('加载成绩项失败:', error);
+                // 初始化3个空行
+                renderGradeItemRows([
+                    { item_name: '', weight: '' },
+                    { item_name: '', weight: '' },
+                    { item_name: '', weight: '' }
+                ]);
+            }
+        }
+
+        function renderGradeItemRows(items) {
+            const container = document.getElementById('itemsContainer');
+            container.innerHTML = '';
+            
+            items.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
+                row.innerHTML = `
+                    <input type="text" class="input-field item-name" placeholder="成绩项名称（如：期中考试）" 
+                           value="${item.item_name || ''}" style="flex: 2;">
+                    <input type="number" class="input-field item-weight" placeholder="权重 (%)" 
+                           value="${item.weight || ''}" min="0" max="100" step="0.1" style="flex: 1;">
+                    <button class="btn-secondary btn-sm" onclick="removeGradeItemRow(this)" style="flex: 0;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function addGradeItemRow() {
+            const container = document.getElementById('itemsContainer');
+            const row = document.createElement('div');
+            row.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
+            row.innerHTML = `
+                <input type="text" class="input-field item-name" placeholder="成绩项名称（如：期中考试）" style="flex: 2;">
+                <input type="number" class="input-field item-weight" placeholder="权重 (%)" min="0" max="100" step="0.1" style="flex: 1;">
+                <button class="btn-secondary btn-sm" onclick="removeGradeItemRow(this)" style="flex: 0;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeGradeItemRow(btn) {
+            btn.parentElement.remove();
+        }
+
+        async function saveAllGradeItems() {
+            if (!currentCourseIdItems) {
+                alert('请先选择课程！');
+                return;
+            }
+
+            const rows = document.querySelectorAll('#itemsContainer > div');
+            const items = [];
+            let totalWeight = 0;
+
+            rows.forEach(row => {
+                const name = row.querySelector('.item-name').value.trim();
+                const weight = parseFloat(row.querySelector('.item-weight').value);
+                
+                if (name && !isNaN(weight)) {
+                    items.push({ item_name: name, weight: weight });
+                    totalWeight += weight;
+                }
+            });
+
+            if (items.length === 0) {
+                alert('请至少添加一个成绩项！');
+                return;
+            }
+
+            if (Math.abs(totalWeight - 100) > 0.01) {
+                alert(`所有权重总和必须等于100%！当前总和：${totalWeight.toFixed(2)}%`);
+                return;
+            }
+
+            try {
+                // 先删除旧的成绩项（如果有）
+                if (gradeItemsCache.length > 0) {
+                    for (const item of gradeItemsCache) {
+                        try {
+                            await apiRequest(`/grade-items/${item.id}`, 'DELETE');
+                        } catch (e) {
+                            console.log('删除旧成绩项失败:', e);
+                        }
+                    }
+                }
+
+                // 创建新的成绩项
+                for (const item of items) {
+                    await apiRequest(`/courses/${currentCourseIdItems}/grade-items`, 'POST', item);
+                }
+
+                alert('成绩项保存成功！');
+                loadOrInitGradeItems(); // 重新加载
+            } catch (error) {
+                alert('保存失败：' + error.message);
+            }
+        }
+
+        // ========== 第二部分：学生成绩录入 ==========
+
+        async function openGradeEntryModal(courseId, courseName) {
+            currentCourseIdGrading = courseId;
+            document.getElementById('modalCourseName').textContent = courseName;
+            
+            // 加载成绩项
+            try {
+                gradeItemsCache = await apiRequest(`/courses/${courseId}/grade-items`);
+                if (!gradeItemsCache || gradeItemsCache.length === 0) {
+                    alert('该课程尚未设置成绩项！请先在"第一步"中设置成绩构成。');
+                    return;
+                }
+            } catch (error) {
+                alert('加载成绩项失败！请先设置成绩构成。');
+                return;
+            }
+
+            // 加载选课学生
+            try {
+                // 注意：这里假设后端有 GET /enrollments?course_id={id} 接口
+                enrollmentsCache = await apiRequest(`/enrollments?course_id=${courseId}`);
+                if (!enrollmentsCache || enrollmentsCache.length === 0) {
+                    alert('该课程暂无学生选课！');
+                    return;
+                }
+            } catch (error) {
+                console.error('加载选课记录失败:', error);
+                enrollmentsCache = [];
+            }
+
+            // 加载已有成绩
+            gradesCache.clear();
+            try {
+                for (const enrollment of enrollmentsCache) {
+                    if (enrollment.grades && Array.isArray(enrollment.grades)) {
+                        enrollment.grades.forEach(grade => {
+                            const key = `${enrollment.id}_${grade.grade_item_id}`;
+                            gradesCache.set(key, grade.score);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('加载成绩失败:', error);
+            }
+
+            renderGradesTable();
+            document.getElementById('gradeEntryModal').classList.add('show');
+        }
+
+        function hideGradeEntryModal() {
+            document.getElementById('gradeEntryModal').classList.remove('show');
+        }
+
+        function renderGradesTable() {
+            const table = document.getElementById('gradesTable');
+            const tbody = document.getElementById('gradesTableBody');
+            
+            // 渲染表头
+            const thead = table.querySelector('thead tr');
+            thead.innerHTML = `
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">学号</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">姓名</th>
+            `;
+            gradeItemsCache.forEach(item => {
+                const th = document.createElement('th');
+                th.style.cssText = 'padding: 10px; text-align: center; border: 1px solid #ddd;';
+                th.textContent = `${item.item_name} (${item.weight}%)`;
+                thead.appendChild(th);
+            });
+
+            // 渲染表体
+            tbody.innerHTML = '';
+            enrollmentsCache.forEach(enrollment => {
+                const student = enrollment.student || {};
+                const row = document.createElement('tr');
+                row.style.borderBottom = '1px solid #eee';
+                
+                let html = `
+                    <td style="padding: 10px; border: 1px solid #ddd;">${student.student_id || '-'}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">${student.name || '-'}</td>
+                `;
+                
+                gradeItemsCache.forEach(item => {
+                    const key = `${enrollment.id}_${item.id}`;
+                    const score = gradesCache.get(key) || '';
+                    html += `
+                        <td style="padding: 5px; border: 1px solid #ddd; text-align: center;">
+                            <input type="number" class="input-field grade-input" 
+                                   data-enrollment-id="${enrollment.id}" 
+                                   data-item-id="${item.id}"
+                                   value="${score}" 
+                                   min="0" max="100" step="0.5"
+                                   style="width: 80px; padding: 5px; text-align: center;">
+                        </td>
+                    `;
+                });
+                
+                row.innerHTML = html;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function saveAllGrades() {
+            const inputs = document.querySelectorAll('.grade-input');
+            const updates = [];
+
+            inputs.forEach(input => {
+                const enrollmentId = parseInt(input.dataset.enrollmentId);
+                const itemId = parseInt(input.dataset.itemId);
+                const score = parseFloat(input.value);
+
+                if (!isNaN(score)) {
+                    updates.push({ enrollmentId, itemId, score });
+                }
+            });
+
+            if (updates.length === 0) {
+                alert('没有需要保存的成绩！');
+                return;
+            }
+
+            try {
+                for (const update of updates) {
+                    // 注意：这里假设后端有 POST /grades 接口接受 {enrollment_id, grade_item_id, score}
+                    await apiRequest('/grades', 'POST', {
+                        enrollment_id: update.enrollmentId,
+                        grade_item_id: update.itemId,
+                        score: update.score
+                    });
+                }
+                alert('成绩保存成功！');
+            } catch (error) {
+                alert('保存失败：' + error.message);
+            }
+        }
+
+        async function importGradesFromCSV() {
+            const fileInput = document.getElementById('csvFileInput');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('请选择CSV或Excel文件！');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                // 注意：这里假设后端有 POST /courses/{id}/grades/batch-import 接口
+                const result = await fetch(`http://127.0.0.1:8000/api/v1/courses/${currentCourseIdGrading}/grades/batch-import`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: formData
+                });
+
+                if (result.ok) {
+                    alert('批量导入成功！');
+                    // 重新加载数据
+                    openGradeEntryModal(currentCourseIdGrading, document.getElementById('modalCourseName').textContent);
+                } else {
+                    const error = await result.text();
+                    alert('导入失败：' + error);
+                }
+            } catch (error) {
+                alert('导入失败：' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

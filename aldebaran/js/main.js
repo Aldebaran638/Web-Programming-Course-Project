@@ -61,8 +61,8 @@ document.addEventListener('DOMContentLoaded', function() {
             let user = null;
             try { user = JSON.parse(userRaw); } catch (e) { user = null; }
             if (user && user.role === 'teacher') {
-                // 教师登录：跳转到教师端前端（new.html 为主体页面）
-                window.location.href = '../webhuangjunhao/new.html';
+                // 教师登录：跳转到教师端前端（index.html 为主体页面）
+                window.location.href = '../webhuangjunhao/index.html';
                 return;
             } else if (user && user.role === 'student') {
                 // 学生登录：跳转到学生端门户

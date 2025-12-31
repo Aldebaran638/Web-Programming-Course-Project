@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程管理 - 教师端</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="teacher.css">
+</head>
+<body>
+    <div class="app-shell">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <h2>教师管理端</h2>
+            </div>
+            
+            <div class="user-card">
+                <div class="avatar-icon">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <div class="user-meta">
+                    <div class="user-badge">
+                        <i class="fas fa-certificate"></i> 教师
+                    </div>
+                    <div class="user-name" id="teacherName">张老师</div>
+                    <div class="user-id">ID: <span id="teacherId">T001</span></div>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <li><a href="index.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-home"></i>
+                    <span>首页</span>
+                </a></li>
+                <li class="active"><a href="courses.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-book-open"></i>
+                    <span>我的课程</span>
+                </a></li>
+                <li><a href="assignments.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>作业管理</span>
+                </a></li>
+                <li><a href="grades.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-chart-line"></i>
+                    <span>成绩管理</span>
+                </a></li>
+                <li><a href="materials.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-folder-open"></i>
+                    <span>课程资料</span>
+                </a></li>
+                <li><a href="#" onclick="logout()">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>退出登录</span>
+                </a></li>
+            </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 顶部栏 -->
+            <header class="topbar">
+                <div class="greeting-section">
+                    <h2 class="greeting-text" id="greetingText">上午好！</h2>
+                    <p class="greeting-sub">管理您的授课课程</p>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn-primary" onclick="showCreateCourseModal()">
+                        <i class="fas fa-plus"></i> 创建新课程
+                    </button>
+                </div>
+            </header>
+
+            <!-- 课程列表 -->
+            <div class="content-container">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-book-open"></i> 我的授课课程</h3>
+                        <div class="filter-bar">
+                            <select class="select-field" id="semesterFilter" onchange="loadCourses()">
+                                <option value="">全部学期</option>
+                                <option value="2025-2026-1" selected>2025-2026 第一学期</option>
+                                <option value="2025-2026-2">2025-2026 第二学期</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div id="coursesList" class="courses-grid">
+                            <!-- 课程卡片由JS加载 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 创建课程模态框 -->
+    <div class="modal-overlay" id="createCourseModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus-circle"></i> 创建新课程</h3>
+                <button class="modal-close" onclick="hideCreateCourseModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="createCourseForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="courseName">课程名称 *</label>
+                            <input type="text" id="courseName" class="input-field" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="courseCode">课程编号 *</label>
+                            <input type="text" id="courseCode" class="input-field" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="credits">学分 *</label>
+                            <input type="number" id="credits" class="input-field" min="0" step="0.5" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="department">院系</label>
+                            <input type="text" id="department" class="input-field">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="courseDescription">课程简介</label>
+                        <textarea id="courseDescription" class="textarea-field" rows="4"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="prerequisites">先修课程</label>
+                        <input type="text" id="prerequisites" class="input-field" placeholder="用逗号分隔多个课程">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="saveDraft('course')">
+                    <i class="fas fa-save"></i> 暂存草稿
+                </button>
+                <button class="btn-primary" onclick="submitCourse()">
+                    <i class="fas fa-check"></i> 创建课程
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="teacher-auth.js"></script>
+    <script src="teacher-api.js"></script>
+    <script>
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLogin();
+            loadCourses();
+            loadDraft('course'); // 加载草稿
+        });
+
+        // 加载课程列表
+        async function loadCourses() {
+            const semester = document.getElementById('semesterFilter').value;
+            const coursesList = document.getElementById('coursesList');
+            
+            try {
+                const assignments = await getTeachingAssignments();
+                
+                if (!assignments || assignments.length === 0) {
+                    coursesList.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>暂无授课课程</p></div>';
+                    return;
+                }
+                
+                // 过滤学期
+                let filteredCourses = assignments;
+                if (semester) {
+                    filteredCourses = assignments.filter(a => a.semester === semester);
+                }
+                
+                // 渲染课程卡片
+                coursesList.innerHTML = '';
+                filteredCourses.forEach(assignment => {
+                    const course = assignment.course;
+                    const card = document.createElement('div');
+                    card.className = 'course-item-card';
+                    card.innerHTML = `
+                        <div class="course-card-header">
+                            <h4>${course.course_name}</h4>
+                            <span class="course-badge">${assignment.semester}</span>
+                        </div>
+                        <div class="course-card-body">
+                            <p class="course-meta"><i class="fas fa-code"></i> ${course.course_code}</p>
+                            <p class="course-meta"><i class="fas fa-graduation-cap"></i> ${course.credits} 学分</p>
+                            <p class="course-meta"><i class="fas fa-building"></i> ${course.department || '未指定'}</p>
+                        </div>
+                        <div class="course-card-footer">
+                            <button class="btn-sm btn-primary" onclick="viewCourseDetail(${course.id})">
+                                <i class="fas fa-eye"></i> 查看详情
+                            </button>
+                            <button class="btn-sm btn-secondary" onclick="manageMaterials(${course.id})">
+                                <i class="fas fa-folder"></i> 课程资料
+                            </button>
+                        </div>
+                    `;
+                    coursesList.appendChild(card);
+                });
+                
+            } catch (error) {
+                console.error('加载课程失败:', error);
+                coursesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>加载失败，请重试</p></div>';
+            }
+        }
+
+        // 查看课程详情
+        function viewCourseDetail(courseId) {
+            window.location.href = `course-detail.html?id=${courseId}`;
+        }
+
+        // 管理课程资料
+        function manageMaterials(courseId) {
+            window.location.href = `materials.html?course_id=${courseId}`;
+        }
+
+        // 显示创建课程模态框
+        function showCreateCourseModal() {
+            document.getElementById('createCourseModal').classList.add('show');
+        }
+
+        // 隐藏创建课程模态框
+        function hideCreateCourseModal() {
+            document.getElementById('createCourseModal').classList.remove('show');
+        }
+
+        // 提交创建课程
+        async function submitCourse() {
+            const courseData = {
+                course_name: document.getElementById('courseName').value.trim(),
+                course_code: document.getElementById('courseCode').value.trim(),
+                credits: parseFloat(document.getElementById('credits').value),
+                department: document.getElementById('department').value.trim() || null,
+                description: document.getElementById('courseDescription').value.trim() || null,
+                prerequisites: document.getElementById('prerequisites').value.trim() || null
+            };
+
+            if (!courseData.course_name || !courseData.course_code || !courseData.credits) {
+                alert('请填写必填项！');
+                return;
+            }
+
+            try {
+                const result = await createCourse(courseData);
+                if (result) {
+                    alert('课程创建成功！');
+                    hideCreateCourseModal();
+                    document.getElementById('createCourseForm').reset();
+                    clearDraft('course'); // 清除草稿
+                    loadCourses();
+                }
+            } catch (error) {
+                alert('创建失败：' + error.message);
+            }
+        }
+
+        // 保存草稿
+        function saveDraft(type) {
+            if (type === 'course') {
+                const draft = {
+                    course_name: document.getElementById('courseName').value,
+                    course_code: document.getElementById('courseCode').value,
+                    credits: document.getElementById('credits').value,
+                    department: document.getElementById('department').value,
+                    description: document.getElementById('courseDescription').value,
+                    prerequisites: document.getElementById('prerequisites').value
+                };
+                localStorage.setItem('draft_course_new', JSON.stringify(draft));
+                alert('草稿已保存！');
+            }
+        }
+
+        // 加载草稿
+        function loadDraft(type) {
+            if (type === 'course') {
+                const draft = localStorage.getItem('draft_course_new');
+                if (draft) {
+                    try {
+                        const data = JSON.parse(draft);
+                        document.getElementById('courseName').value = data.course_name || '';
+                        document.getElementById('courseCode').value = data.course_code || '';
+                        document.getElementById('credits').value = data.credits || '';
+                        document.getElementById('department').value = data.department || '';
+                        document.getElementById('courseDescription').value = data.description || '';
+                        document.getElementById('prerequisites').value = data.prerequisites || '';
+                    } catch (e) {
+                        console.error('加载草稿失败:', e);
+                    }
+                }
+            }
+        }
+
+        // 清除草稿
+        function clearDraft(type) {
+            if (type === 'course') {
+                localStorage.removeItem('draft_course_new');
+            }
+        }
+
+        // 查看课程详情
+        function viewCourseDetail(courseId) {
+            window.location.href = `course-detail.html?id=${courseId}`;
+        }
+
+        // 管理课程资料
+        function manageMaterials(courseId) {
+            window.location.href = `materials.html?course_id=${courseId}`;
+        }
+    </script>
+</body>
+</html>

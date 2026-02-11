@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作业提交情况 - 教师工作台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="teacher.css">
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    <h2>教师工作台</h2>
+                </div>
+            </div>
+            <div class="user-card">
+                <div class="avatar-icon">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <div class="user-meta">
+                    <div class="user-name" id="teacherName">教师</div>
+                    <div class="user-id" id="teacherId">ID -</div>
+                    <div class="user-badge">
+                        <i class="fas fa-certificate"></i> 授课教师
+                    </div>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <li><a href="index.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-home"></i>
+                    <span>首页</span>
+                </a></li>
+                <li class="active"><a href="courses.html">
+                    <div class="nav-accent"></div>
+                    <i class="fas fa-book-open"></i>
+                    <span>课程管理</span>
+                </a></li>
+            </nav>
+            <div style="position:absolute;bottom:24px;left:0;right:0;padding:0 20px;">
+                <button class="btn-ghost" onclick="logout()" style="width:100%;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.3);color:#d4af37;">
+                    <i class="fas fa-sign-out-alt"></i> 退出登录
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="greeting-section">
+                    <button class="btn-ghost" onclick="history.back()">
+                        <i class="fas fa-arrow-left"></i> 返回
+                    </button>
+                    <h2 class="greeting-text" id="assignmentTitle">作业提交情况</h2>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn-secondary" onclick="exportSubmissions()">
+                        <i class="fas fa-download"></i> 导出成绩
+                    </button>
+                </div>
+            </header>
+
+            <div class="content-container">
+                <!-- 统计概览 -->
+                <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:linear-gradient(135deg,#4285f4,#3367d6);">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalStudents">0</div>
+                            <div class="stat-label">总学生数</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:linear-gradient(135deg,#34a853,#0d8043);">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="submittedCount">0</div>
+                            <div class="stat-label">已提交</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:linear-gradient(135deg,#fbbc04,#f9ab00);">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="pendingCount">0</div>
+                            <div class="stat-label">待批改</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:linear-gradient(135deg,#9c27b0,#7b1fa2);">
+                            <i class="fas fa-award"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="gradedCount">0</div>
+                            <div class="stat-label">已批改</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 提交情况列表 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-list"></i> 学生提交情况</h3>
+                        <div class="filter-bar">
+                            <select class="select-field" id="statusFilter" onchange="filterSubmissions()">
+                                <option value="all">全部状态</option>
+                                <option value="pending">待批改</option>
+                                <option value="graded">已批改</option>
+                                <option value="not_submitted">未提交</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>学号</th>
+                                        <th>姓名</th>
+                                        <th>提交时间</th>
+                                        <th>状态</th>
+                                        <th>分数</th>
+                                        <th>附件</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="submissionsList">
+                                    <tr class="empty-state-row">
+                                        <td colspan="7">
+                                            <i class="fas fa-spinner fa-spin"></i> 加载中...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 批改弹窗 -->
+    <div id="gradeModal" style="display:none;">
+        <div class="modal-mask"></div>
+        <div class="modal-dialog" style="max-width:600px;">
+            <div class="modal-header">
+                <span class="modal-title"><i class="fas fa-pen"></i> 批改作业</span>
+                <button class="modal-close" onclick="closeGradeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>学生姓名</label>
+                    <input type="text" id="studentName" class="input-field" readonly>
+                </div>
+                <div class="form-group">
+                    <label>提交时间</label>
+                    <input type="text" id="submitTime" class="input-field" readonly>
+                </div>
+                <div class="form-group">
+                    <label>分数 *</label>
+                    <input type="number" id="scoreInput" class="input-field" min="0" max="100" step="0.5" placeholder="请输入分数">
+                </div>
+                <div class="form-group">
+                    <label>评语</label>
+                    <textarea id="feedbackInput" class="input-field" rows="4" style="resize:vertical;" placeholder="可选，输入您的评语..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-secondary" onclick="closeGradeModal()">取消</button>
+                    <button class="btn-primary" onclick="submitGrade()">提交批改</button>
+                </div>
+                <div id="gradeMsg" class="form-msg"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 附件查看弹窗 -->
+    <div id="attachmentModal" style="display:none;">
+        <div class="modal-mask"></div>
+        <div class="modal-dialog" style="max-width:700px;">
+            <div class="modal-header">
+                <span class="modal-title"><i class="fas fa-paperclip"></i> 查看附件</span>
+                <button class="modal-close" onclick="closeAttachmentModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>学生姓名</label>
+                    <div id="attachmentStudentName" style="padding:8px;background:#1a2028;border-radius:4px;color:#e8eaed;"></div>
+                </div>
+                <div class="form-group">
+                    <label>提交附件</label>
+                    <div id="attachmentList" style="max-height:400px;overflow-y:auto;">
+                        <!-- 附件列表将动态加载 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .modal-mask {position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:1001;}
+        .modal-dialog {position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card-bg,#23272e);color:var(--text,#e8eaed);border-radius:12px;box-shadow:0 8px 32px #0008;z-index:1002;min-width:400px;max-width:90vw;padding:0;}
+        .modal-header {display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #333;}
+        .modal-title {font-size:1.2rem;font-weight:600;}
+        .modal-close {background:none;border:none;font-size:1.8rem;color:#aaa;cursor:pointer;line-height:1;}
+        .modal-close:hover {color:#fff;}
+        .modal-body {padding:20px 24px;}
+        .form-group {margin-bottom:16px;}
+        .form-group label {display:block;margin-bottom:6px;font-size:0.95rem;font-weight:500;}
+        .input-field {width:100%;padding:10px 12px;border:1px solid #444;border-radius:6px;background:#181c22;color:#e8eaed;font-size:1rem;}
+        .input-field:focus {outline:none;border-color:#d4af37;}
+        .form-actions {display:flex;gap:12px;justify-content:flex-end;margin-top:20px;}
+        .form-msg {color:#ea4335;font-size:0.9rem;margin-top:10px;min-height:20px;}
+        
+        .status-badge {
+            display:inline-block;
+            padding:4px 10px;
+            border-radius:4px;
+            font-size:0.85rem;
+            font-weight:500;
+        }
+        .status-pending {background:#fbbc04;color:#000;}
+        .status-graded {background:#34a853;color:#fff;}
+        .status-not-submitted {background:#ea4335;color:#fff;}
+        
+        .attachment-item {
+            background:#1a2028;
+            border:1px solid #2a3139;
+            border-radius:6px;
+            padding:12px;
+            margin-bottom:10px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+        }
+        .attachment-item:hover {border-color:#d4af37;}
+        .attachment-icon {font-size:1.5rem;color:#d4af37;margin-right:12px;}
+        .attachment-info {flex:1;}
+        .attachment-name {color:#e8eaed;font-weight:500;margin-bottom:4px;}
+        .attachment-path {color:#9aa0a6;font-size:0.85rem;}
+    </style>
+
+    <script src="teacher-auth.js"></script>
+    <script src="teacher-api.js"></script>
+    <script>
+        let assignmentId = null;
+        let courseId = null;
+        let allSubmissions = [];
+        let currentSubmissionId = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLogin();
+            
+            // 从URL参数获取作业ID和课程ID
+            const urlParams = new URLSearchParams(window.location.search);
+            assignmentId = urlParams.get('assignment_id');
+            courseId = urlParams.get('course_id');
+            const title = urlParams.get('title');
+            
+            if (!assignmentId) {
+                alert('缺少作业ID');
+                history.back();
+                return;
+            }
+            
+            if (title) {
+                document.getElementById('assignmentTitle').textContent = decodeURIComponent(title) + ' - 提交情况';
+            }
+            
+            loadSubmissions();
+        });
+
+        async function loadSubmissions() {
+            try {
+                const submissions = await getSubmissions(assignmentId);
+                allSubmissions = submissions || [];
+                
+                // 更新统计
+                updateStats();
+                
+                // 渲染列表
+                renderSubmissions(allSubmissions);
+            } catch (error) {
+                console.error('加载提交情况失败:', error);
+                document.getElementById('submissionsList').innerHTML = `
+                    <tr class="empty-state-row">
+                        <td colspan="7">
+                            <i class="fas fa-exclamation-triangle"></i> 加载失败
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function updateStats() {
+            const total = allSubmissions.length;
+            const submitted = allSubmissions.filter(s => s.status !== 'not_submitted').length;
+            const pending = allSubmissions.filter(s => s.status === 'pending').length;
+            const graded = allSubmissions.filter(s => s.status === 'graded').length;
+            
+            document.getElementById('totalStudents').textContent = total;
+            document.getElementById('submittedCount').textContent = submitted;
+            document.getElementById('pendingCount').textContent = pending;
+            document.getElementById('gradedCount').textContent = graded;
+        }
+
+        function renderSubmissions(submissions) {
+            const tbody = document.getElementById('submissionsList');
+            
+            if (!submissions || submissions.length === 0) {
+                tbody.innerHTML = `
+                    <tr class="empty-state-row">
+                        <td colspan="7">
+                            <i class="fas fa-inbox"></i> 暂无提交记录
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = submissions.map(sub => {
+                const statusClass = sub.status === 'graded' ? 'status-graded' : 
+                                   sub.status === 'pending' ? 'status-pending' : 'status-not-submitted';
+                const statusText = sub.status === 'graded' ? '已批改' : 
+                                  sub.status === 'pending' ? '待批改' : '未提交';
+                
+                const submitTime = sub.submitted_at ? 
+                    new Date(sub.submitted_at).toLocaleString('zh-CN') : '-';
+                
+                const score = sub.score !== null && sub.score !== undefined ? sub.score : '-';
+                
+                const hasAttachment = sub.file_path ? 
+                    `<button class="btn-sm btn-primary" onclick="viewAttachment(${sub.submission_id}, '${(sub.student?.full_name || '').replace(/'/g, "\\'")}', '${(sub.file_path || '').replace(/'/g, "\\'")}')">
+                        <i class="fas fa-paperclip"></i>
+                    </button>` : 
+                    '<span style="color:#666;">-</span>';
+                
+                const gradeBtn = sub.status !== 'not_submitted' ?
+                    `<button class="btn-sm btn-secondary" onclick="openGradeModal(${sub.submission_id}, '${(sub.student?.full_name || '').replace(/'/g, "\\'")}', '${submitTime}', ${sub.score || 'null'}, '${(sub.feedback || '').replace(/'/g, "\\'")}')">
+                        <i class="fas fa-pen"></i> ${sub.status === 'graded' ? '修改' : '批改'}
+                    </button>` : 
+                    '<span style="color:#666;">-</span>';
+                
+                return `
+                    <tr>
+                        <td>${sub.student?.student_id || '-'}</td>
+                        <td>${sub.student?.full_name || '-'}</td>
+                        <td>${submitTime}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td><strong style="color:#d4af37;">${score}</strong></td>
+                        <td style="text-align:center;">${hasAttachment}</td>
+                        <td style="text-align:center;">${gradeBtn}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterSubmissions() {
+            const filterValue = document.getElementById('statusFilter').value;
+            
+            if (filterValue === 'all') {
+                renderSubmissions(allSubmissions);
+            } else {
+                const filtered = allSubmissions.filter(s => s.status === filterValue);
+                renderSubmissions(filtered);
+            }
+        }
+
+        // 打开批改弹窗
+        function openGradeModal(submissionId, studentName, submitTime, score, feedback) {
+            currentSubmissionId = submissionId;
+            
+            document.getElementById('studentName').value = studentName;
+            document.getElementById('submitTime').value = submitTime;
+            document.getElementById('scoreInput').value = score !== null ? score : '';
+            document.getElementById('feedbackInput').value = feedback || '';
+            document.getElementById('gradeMsg').textContent = '';
+            
+            document.getElementById('gradeModal').style.display = 'block';
+        }
+
+        function closeGradeModal() {
+            document.getElementById('gradeModal').style.display = 'none';
+            currentSubmissionId = null;
+        }
+
+        // 提交批改
+        async function submitGrade() {
+            const score = document.getElementById('scoreInput').value;
+            const feedback = document.getElementById('feedbackInput').value;
+            const msgEl = document.getElementById('gradeMsg');
+            
+            if (!score || score === '') {
+                msgEl.textContent = '请输入分数';
+                return;
+            }
+            
+            const scoreNum = parseFloat(score);
+            if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100) {
+                msgEl.textContent = '分数必须在0-100之间';
+                return;
+            }
+            
+            msgEl.textContent = '';
+            
+            try {
+                const result = await gradeSubmission(currentSubmissionId, {
+                    score: scoreNum,
+                    feedback: feedback.trim()
+                });
+                
+                if (result) {
+                    closeGradeModal();
+                    await loadSubmissions(); // 刷新列表
+                } else {
+                    msgEl.textContent = '批改失败，请重试';
+                }
+            } catch (error) {
+                console.error('批改失败:', error);
+                msgEl.textContent = '批改失败：' + error.message;
+            }
+        }
+
+        // 查看附件
+        function viewAttachment(submissionId, studentName, filePath) {
+            document.getElementById('attachmentStudentName').textContent = studentName;
+            
+            const attachmentList = document.getElementById('attachmentList');
+            
+            if (!filePath) {
+                attachmentList.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">暂无附件</div>';
+            } else {
+                // 可以是多个文件，用逗号分隔（如果支持的话）
+                const files = filePath.split(',').map(f => f.trim()).filter(f => f);
+                
+                attachmentList.innerHTML = files.map(file => {
+                    const fileName = file.split('/').pop();
+                    const ext = fileName.split('.').pop().toLowerCase();
+                    
+                    let icon = 'fa-file';
+                    if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) {
+                        icon = 'fa-file-image';
+                    } else if (['pdf'].includes(ext)) {
+                        icon = 'fa-file-pdf';
+                    } else if (['doc', 'docx'].includes(ext)) {
+                        icon = 'fa-file-word';
+                    } else if (['xls', 'xlsx'].includes(ext)) {
+                        icon = 'fa-file-excel';
+                    } else if (['zip', 'rar', '7z'].includes(ext)) {
+                        icon = 'fa-file-archive';
+                    }
+                    
+                    return `
+                        <div class="attachment-item">
+                            <div style="display:flex;align-items:center;flex:1;">
+                                <i class="fas ${icon} attachment-icon"></i>
+                                <div class="attachment-info">
+                                    <div class="attachment-name">${fileName}</div>
+                                    <div class="attachment-path">${file}</div>
+                                </div>
+                            </div>
+                            <a href="${file}" download class="btn-sm btn-primary" title="下载">
+                                <i class="fas fa-download"></i> 下载
+                            </a>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            document.getElementById('attachmentModal').style.display = 'block';
+        }
+
+        function closeAttachmentModal() {
+            document.getElementById('attachmentModal').style.display = 'none';
+        }
+
+        function exportSubmissions() {
+            alert('导出功能开发中');
+        }
+
+        // 关闭弹窗（点击遮罩）
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal-mask')) {
+                closeGradeModal();
+                closeAttachmentModal();
+            }
+        });
+    </script>
+</body>
+</html>

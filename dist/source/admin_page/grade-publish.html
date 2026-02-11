@@ -1,0 +1,121 @@
+<!-- 这是动态加载的内容模板 -->
+<div class="page-card">
+    <div class="page-header">
+        <h2>成绩发布</h2>
+        <div class="header-actions">
+            <button class="btn btn-primary" id="refresh-publish-btn">
+                <i class="fas fa-sync-alt"></i> 刷新
+            </button>
+        </div>
+    </div>
+    
+    <div class="search-filter">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="search-publish-course" placeholder="搜索课程名称或编号...">
+        </div>
+        <div class="filter-group">
+            <select id="filter-publish-semester">
+                <option value="">所有学期</option>
+                <option value="2025-2026-1">2025-2026学年 第1学期</option>
+                <option value="2025-2026-2">2025-2026学年 第2学期</option>
+            </select>
+            <select id="filter-publish-status">
+                <option value="">所有状态</option>
+                <option value="pending_review">待审核</option>
+                <option value="approved">已审核</option>
+                <option value="published">已发布</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="table-container">
+        <div class="table-responsive">
+            <table class="data-table" id="grade-publish-table">
+                <thead>
+                    <tr>
+                        <th width="50px">
+                            <input type="checkbox" id="select-all-publish">
+                        </th>
+                        <th>课程信息</th>
+                        <th>学期</th>
+                        <th>状态</th>
+                        <th>审核时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="grade-publish-body">
+                    <!-- 成绩发布数据将通过JS动态加载 -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="loading" id="publish-loading">
+            <div class="spinner"></div>
+        </div>
+        
+        <div class="empty-state" id="publish-empty" style="display: none;">
+            <i class="fas fa-paper-plane"></i>
+            <h3>暂无可发布的成绩</h3>
+            <p>所有成绩均已发布或正在审核中</p>
+        </div>
+        
+        <div class="pagination" id="publish-pagination"></div>
+        
+        <div class="batch-actions" id="publish-batch-actions" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eaeaea;">
+            <h4>批量发布</h4>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-primary" id="batch-publish-btn">
+                    <i class="fas fa-paper-plane"></i> 批量发布成绩
+                </button>
+                <button class="btn btn-secondary" id="cancel-publish-batch">
+                    <i class="fas fa-times"></i> 取消选择
+                </button>
+            </div>
+            <div class="alert alert-warning" style="margin-top: 15px; font-size: 14px;">
+                <i class="fas fa-exclamation-triangle"></i>
+                注意：发布后的成绩将对学生可见，请确保成绩已审核无误。
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 发布确认模态框 -->
+<div id="publish-confirm-modal" style="display: none;">
+    <div class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>确认发布成绩</h3>
+                <button class="close-btn" onclick="gradePublishManager.closeConfirmModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <div class="confirm-icon">
+                        <i class="fas fa-paper-plane" style="font-size: 48px; color: #1a3a8f;"></i>
+                    </div>
+                    <h4 id="confirm-title">发布成绩确认</h4>
+                    <p class="confirm-text" id="confirm-text"></p>
+                    <div class="alert alert-warning" style="margin-top: 20px; text-align: left;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>重要提示：</strong>
+                        <ul style="margin: 10px 0 0 20px;">
+                            <li>发布后成绩将对学生可见</li>
+                            <li>学生可以查看详细成绩构成</li>
+                            <li>发布后如需修改需重新审核</li>
+                            <li>请确保所有成绩已审核无误</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button class="btn btn-primary" id="confirm-publish-btn">
+                        <i class="fas fa-check"></i> 确认发布
+                    </button>
+                    <button class="btn btn-outline" onclick="gradePublishManager.closeConfirmModal()">
+                        取消
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

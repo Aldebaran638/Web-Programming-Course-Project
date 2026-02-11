@@ -1,0 +1,5088 @@
+from fastapi import FastAPI, Query, HTTPException, UploadFile, File, Form, status, Depends, Header, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
+import os
+import json
+import hashlib
+import secrets
+from dataclasses import dataclass
+from pydantic import BaseModel
+from sqlalchemy import (
+    create_engine,
+    Column,
+    Integer,
+    String,
+    Float,
+    Text,
+    Enum,
+    ForeignKey,
+    DECIMAL,
+    and_,
+    or_,
+    asc,
+    desc,
+    Boolean,
+    DateTime,
+    Time,
+)
+from sqlalchemy.orm import sessionmaker, relationship, joinedload, declarative_base
+from sqlalchemy.exc import SQLAlchemyError
+import math
+import logging
+
+DATABASE_URL = "mysql+pymysql://root:123456@localhost:3306/Web-Programming-Course-Project?charset=utf8mb4"
+
+Base = declarative_base()
+
+logging.basicConfig(level=logging.INFO)
+
+# ORM Models
+class User(Base):
+    __tablename__ = "Users"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(50), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(Enum("student", "teacher", "edu_admin", "sys_admin", name="user_role"), nullable=False)
+    email = Column(String(100), unique=True, nullable=False)
+    status = Column(Enum("active", "locked", name="user_status"), nullable=False, default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+
+
+class Class(Base):
+    __tablename__ = "Classes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    class_name = Column(String(100), unique=True, nullable=False)
+    department = Column(String(100))
+    enrollment_year = Column(Integer)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+
+
+class StudentProfile(Base):
+    __tablename__ = "StudentProfiles"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("Users.id"), nullable=False)
+    student_id_number = Column(String(50), unique=True, nullable=False)
+    full_name = Column(String(100), nullable=False)
+    class_id = Column(Integer, ForeignKey("Classes.id"))
+
+    user = relationship("User")
+    class_ = relationship("Class")
+
+
+class Course(Base):
+    __tablename__ = 'Courses'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    course_code = Column(String(50), unique=True, nullable=False)
+    course_name = Column(String(100), nullable=False)
+    credits = Column(DECIMAL(3, 1), nullable=False)
+    description = Column(Text)
+    department = Column(String(100))
+    prerequisites = Column(Text)
+    is_deleted = Column(Integer, default=0)
+    # 是否已通过教学管理端的成绩审核
+    grade_approved = Column(Boolean, default=False, nullable=False)
+    teaching_assignments = relationship("TeachingAssignment", back_populates="course")
+
+class TeachingAssignment(Base):
+    __tablename__ = 'TeachingAssignments'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    teacher_id = Column(Integer, ForeignKey('TeacherProfiles.id'))
+    course_id = Column(Integer, ForeignKey('Courses.id'))
+    semester = Column(String(50), nullable=False)
+    is_deleted = Column(Integer, default=0)
+    course = relationship("Course", back_populates="teaching_assignments")
+    teacher = relationship("TeacherProfile", back_populates="teaching_assignments")
+
+class TeacherProfile(Base):
+    __tablename__ = 'TeacherProfiles'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False)
+    teacher_id_number = Column(String(50), unique=True, nullable=False)
+    full_name = Column(String(100), nullable=False)
+    title = Column(String(50))
+    teaching_assignments = relationship("TeachingAssignment", back_populates="teacher")
+
+
+class Classroom(Base):
+    __tablename__ = "Classrooms"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), unique=True, nullable=False)
+    location = Column(String(255))
+    capacity = Column(Integer)
+
+
+class CourseMaterial(Base):
+    __tablename__ = "CourseMaterials"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    course_id = Column(Integer, ForeignKey("Courses.id"), nullable=False)
+    material_type = Column(Enum("document", "video", "carousel_image", "config", name="material_type"), nullable=False)
+    title = Column(String(255))
+    file_path_or_content = Column(String(255))
+    display_order = Column(Integer, default=0)
+    uploaded_by = Column(Integer, ForeignKey("Users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+
+    course = relationship("Course")
+    uploader = relationship("User")
+
+
+class Enrollment(Base):
+    __tablename__ = "Enrollments"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    student_id = Column(Integer, ForeignKey("StudentProfiles.id"), nullable=False)
+    course_id = Column(Integer, ForeignKey("Courses.id"), nullable=False)
+    semester = Column(String(50), nullable=False)
+    enrollment_date = Column(DateTime, default=datetime.utcnow)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+
+    student = relationship("StudentProfile")
+    course = relationship("Course")
+
+
+class CourseSchedule(Base):
+    __tablename__ = "CourseSchedules"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    teaching_id = Column(Integer, ForeignKey("TeachingAssignments.id"), nullable=False)
+    classroom_id = Column(Integer, ForeignKey("Classrooms.id"), nullable=False)
+    day_of_week = Column(Enum("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", name="day_of_week"), nullable=False)
+    start_time = Column(Time, nullable=False)
+    end_time = Column(Time, nullable=False)
+
+    teaching = relationship("TeachingAssignment")
+    classroom = relationship("Classroom")
+
+
+class GradeItem(Base):
+    __tablename__ = "GradeItems"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    course_id = Column(Integer, ForeignKey("Courses.id"), nullable=False)
+    item_name = Column(String(100), nullable=False)
+    weight = Column(DECIMAL(5, 2), nullable=False)
+    description = Column(Text)
+    assignment_id = Column(Integer, ForeignKey("Assignments.id"))
+    is_deleted = Column(Boolean, default=False, nullable=False)
+
+
+class Assignment(Base):
+    __tablename__ = "Assignments"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    course_id = Column(Integer, ForeignKey("Courses.id"), nullable=False)
+    title = Column(String(100), nullable=False)
+    description = Column(Text)
+    file_path = Column(String(255))
+    deadline = Column(DateTime)
+    type = Column(Enum("assignment", "exam", name="assignment_type"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+
+
+class Grade(Base):
+    __tablename__ = "Grades"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    enrollment_id = Column(Integer, ForeignKey("Enrollments.id"), nullable=False)
+    grade_item_id = Column(Integer, ForeignKey("GradeItems.id"), nullable=False)
+    score = Column(DECIMAL(5, 2))
+    status = Column(Enum("pending", "graded", "published", name="grade_status"), nullable=False, default="pending")
+    graded_at = Column(DateTime)
+    grader_id = Column(Integer, ForeignKey("Users.id"))
+    is_deleted = Column(Boolean, default=False, nullable=False)
+
+    enrollment = relationship("Enrollment")
+    grade_item = relationship("GradeItem")
+    grader = relationship("User")
+
+
+class TaskProgress(Base):
+    __tablename__ = "TaskProgress"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    enrollment_id = Column(Integer, ForeignKey("Enrollments.id"), nullable=False)
+    material_id = Column(Integer, ForeignKey("CourseMaterials.id"), nullable=False)
+    status = Column(Enum("todo", "done", name="task_status"), nullable=False, default="todo")
+    last_access_time = Column(DateTime)
+
+    enrollment = relationship("Enrollment")
+    material = relationship("CourseMaterial")
+
+
+class AssignmentSubmission(Base):
+    __tablename__ = "AssignmentSubmissions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    assignment_id = Column(Integer, ForeignKey("Assignments.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("StudentProfiles.id"), nullable=False)
+    file_path = Column(String(255))
+    submitted_at = Column(DateTime, default=datetime.utcnow)
+    score = Column(DECIMAL(5, 2))
+    feedback = Column(Text)
+    graded_at = Column(DateTime)
+    grader_id = Column(Integer, ForeignKey("Users.id"))
+    is_deleted = Column(Boolean, default=False, nullable=False)
+
+    assignment = relationship("Assignment")
+    student = relationship("StudentProfile")
+    grader = relationship("User")
+
+
+class CourseComment(Base):
+    __tablename__ = "CourseComments"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    course_id = Column(Integer, ForeignKey("Courses.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("Users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    parent_id = Column(Integer, ForeignKey("CourseComments.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_deleted = Column(Boolean, default=False, nullable=False)
+
+
+class Log(Base):
+    __tablename__ = "Logs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("Users.id"))
+    action = Column(String(255), nullable=False)
+    description = Column(Text)  # 可读的操作描述
+    details = Column(Text)  # JSON格式的详细数据
+    ip_address = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+
+
+# 可通用恢复的资源映射（仅包含有 is_deleted 字段的表）
+RESTORABLE_MODELS = {
+    "users": User,
+    "classes": Class,
+    "courses": Course,
+    "coursematerials": CourseMaterial,
+    "enrollments": Enrollment,
+    "gradeitems": GradeItem,
+    "assignments": Assignment,
+    "grades": Grade,
+    "assignmentsubmissions": AssignmentSubmission,
+    "coursecomments": CourseComment,
+}
+
+# Pydantic Schemas
+class TeacherOut(BaseModel):
+    id: int
+    full_name: str
+    class Config:
+        orm_mode = True
+
+class CourseOut(BaseModel):
+    id: int
+    course_code: str
+    course_name: str
+    credits: float
+    description: Optional[str]
+    department: Optional[str]
+    prerequisites: Optional[str]
+    teachers: List[TeacherOut]
+    class Config:
+        orm_mode = True
+
+class Pagination(BaseModel):
+    totalItems: int
+    totalPages: int
+    currentPage: int
+    pageSize: int
+
+class CourseListResponse(BaseModel):
+    pagination: Pagination
+    courses: List[CourseOut]
+
+# FastAPI app
+
+app = FastAPI(title="成绩管理教学平台 API", version="1.0.0")
+# 允许 CORS：支持 127.0.0.1 / localhost 上 5500-8000 端口
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    ],
+    # 使用正则放宽到 5500-8000 范围内的所有端口
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):(55[0-9]{2}|5[6-9][0-9]{2}|6[0-9]{3}|7[0-9]{3}|8000)",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+def _generate_log_description(method: str, path: str, status_code, user_id: Optional[int]) -> str:
+    """生成可读的日志描述"""
+    user_prefix = f"用户{user_id}" if user_id else "匿名用户"
+    
+    # 根据路径和方法生成描述
+    if "/auth/login" in path:
+        if status_code == 200:
+            return f"{user_prefix} 登录成功"
+        else:
+            return f"{user_prefix} 登录失败 (状态码: {status_code})"
+    
+    # 通用路径解析
+    path_descriptions = {
+        "courses": "课程",
+        "assignments": "作业",
+        "materials": "课件",
+        "users": "用户",
+        "enrollments": "选课",
+        "submissions": "作业提交",
+        "grades": "成绩",
+        "teaching-assignments": "教学任务",
+        "semesters": "学期",
+        "backups": "备份",
+    }
+    
+    method_actions = {
+        "POST": "创建",
+        "PUT": "更新",
+        "PATCH": "修改",
+        "DELETE": "删除",
+    }
+    
+    # 查找资源类型
+    resource_type = "资源"
+    for key, value in path_descriptions.items():
+        if key in path:
+            resource_type = value
+            break
+    
+    action = method_actions.get(method, method)
+    
+    if status_code == 200 or status_code == 201:
+        return f"{user_prefix} {action}{resource_type}成功"
+    elif status_code == 401:
+        return f"{user_prefix} {action}{resource_type}失败 - 未授权"
+    elif status_code == 403:
+        return f"{user_prefix} {action}{resource_type}失败 - 权限不足"
+    elif status_code == 404:
+        return f"{user_prefix} {action}{resource_type}失败 - 资源不存在"
+    else:
+        return f"{user_prefix} {action}{resource_type} (状态码: {status_code})"
+
+
+def _safe_log_action(user_id: Optional[int], action: str, description: str, details: str, ip_address: Optional[str] = None) -> None:
+    """Record an operation into Logs table; swallow errors to avoid breaking requests."""
+    session = SessionLocal()
+    try:
+        session.add(Log(user_id=user_id, action=action[:255], description=description, details=details, ip_address=ip_address))
+        session.commit()
+    except Exception:
+        session.rollback()
+    finally:
+        session.close()
+
+
+@app.middleware("http")
+async def audit_non_get_and_login(request: Request, call_next):
+    """Log all non-GET requests (except OPTIONS) and the login endpoint."""
+
+    path = request.url.path
+    method = request.method.upper()
+    
+    # 过滤OPTIONS请求，记录非GET请求或登录请求
+    log_needed = (method != "GET" and method != "OPTIONS") or path.startswith("/api/v1/auth/login")
+    ip_address = request.client.host if request.client else None
+
+    # Try to resolve current user from token without blocking request.
+    user_id: Optional[int] = None
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+        current = active_tokens.get(token)
+        if current:
+            user_id = current.id
+
+    response = None
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        if log_needed:
+            status_code = getattr(response, "status_code", None) or "error"
+            
+            # 生成可读的操作描述
+            description = _generate_log_description(method, path, status_code, user_id)
+            
+            # Avoid consuming body; log only meta data.
+            detail_obj = {
+                "method": method,
+                "path": path,
+                "query": request.url.query,
+                "status": status_code,
+            }
+            details = json.dumps(detail_obj, ensure_ascii=False)
+            _safe_log_action(user_id=user_id, action=f"{method} {path}", description=description, details=details, ip_address=ip_address)
+
+
+@app.exception_handler(SQLAlchemyError)
+async def db_error_handler(request: Request, exc: SQLAlchemyError):
+    """统一处理数据库访问异常：返回测试数据并在日志中提醒。"""
+
+    logging.error(
+        "数据库访问失败: %s %s - %s",
+        request.method,
+        request.url.path,
+        repr(exc),
+    )
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "data": {"sample": True},
+            "error": {
+                "code": "DB_ACCESS_ERROR",
+                "message": "当前接口访问数据库失败，本接口返回的是后端测试数据",
+            },
+        },
+    )
+
+# SQLAlchemy session
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# 允许的排序字段
+ALLOWED_SORT_FIELDS = {
+    'course_code': Course.course_code,
+    'course_name': Course.course_name,
+    'credits': Course.credits,
+    'department': Course.department
+}
+
+@app.get("/api/v1/courses", response_model=CourseListResponse)
+def get_courses(
+    page: int = Query(1, ge=1),
+    pageSize: int = Query(10, ge=1, le=100),
+    sortBy: str = Query('course_code'),
+    order: str = Query('asc'),
+    course_code: Optional[str] = None,
+    course_name: Optional[str] = None,
+    department: Optional[str] = None,
+    credits: Optional[float] = None
+):
+    if sortBy not in ALLOWED_SORT_FIELDS:
+        raise HTTPException(status_code=400, detail={
+            "error": {
+                "code": "INVALID_PARAMETER",
+                "message": f"无效的排序字段 '{sortBy}'。"
+            }
+        })
+    sort_column = ALLOWED_SORT_FIELDS[sortBy]
+    sort_func = asc if order == 'asc' else desc
+    session = SessionLocal()
+    try:
+        query = session.query(Course).filter(Course.is_deleted == 0)
+        # 搜索条件
+        if course_code:
+            query = query.filter(Course.course_code == course_code)
+        if course_name:
+            query = query.filter(Course.course_name.like(f"%{course_name}%"))
+        if department:
+            query = query.filter(Course.department == department)
+        if credits is not None:
+            query = query.filter(Course.credits == credits)
+        total_items = query.count()
+        total_pages = math.ceil(total_items / pageSize) if pageSize else 1
+        # 排序和分页
+        query = query.order_by(sort_func(sort_column))
+        query = query.offset((page - 1) * pageSize).limit(pageSize)
+        courses = query.options(joinedload(Course.teaching_assignments).joinedload(TeachingAssignment.teacher)).all()
+        # 组装结果
+        result_courses = []
+        for c in courses:
+            teachers = []
+            for ta in c.teaching_assignments:
+                if ta.teacher and ta.is_deleted == 0:
+                    teachers.append(TeacherOut(id=ta.teacher.id, full_name=ta.teacher.full_name))
+            result_courses.append(CourseOut(
+                id=c.id,
+                course_code=c.course_code,
+                course_name=c.course_name,
+                credits=float(c.credits),
+                description=c.description,
+                department=c.department,
+                prerequisites=c.prerequisites,
+                teachers=teachers
+            ))
+        return CourseListResponse(
+            pagination=Pagination(
+                totalItems=total_items,
+                totalPages=total_pages,
+                currentPage=page,
+                pageSize=pageSize
+            ),
+            courses=result_courses
+        )
+    finally:
+        session.close()
+
+# 你可以通过 http://localhost:8000/docs 访问Swagger UI 文档页面，在线调试API。
+
+
+# =====================
+# 用户登录（骨架实现）
+# =====================
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class LoginUserInfo(BaseModel):
+    id: int
+    username: str
+    role: str
+    force_password_change: bool = True
+
+class LoginResponse(BaseModel):
+    token: str
+    user: LoginUserInfo
+
+LOGIN_LOCK_DURATION = timedelta(minutes=5)
+MAX_FAILED_ATTEMPTS = 5
+
+def hash_password(password: str) -> str:
+    """简单示例：使用 SHA-256 对明文密码进行哈希。
+
+    实际项目应使用带盐哈希和专门密码库。
+    """
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+
+def parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
+    """将 ISO8601 字符串解析为 datetime，支持末尾的 'Z'。解析失败返回 None。"""
+    if not value:
+        return None
+    try:
+        v = value.strip()
+        if v.endswith("Z"):
+            v = v.replace("Z", "+00:00")
+        return datetime.fromisoformat(v)
+    except Exception:
+        return None
+
+
+@dataclass
+class CurrentUser:
+    id: int
+    username: str
+    role: str
+    student_profile_id: Optional[int] = None
+    teacher_profile_id: Optional[int] = None
+
+
+# 简单内存态：token -> 当前用户信息（仅用于课程项目示例，进程重启会失效）
+active_tokens: Dict[str, CurrentUser] = {}
+
+# 登录失败计数与锁定信息，按用户名记录
+failed_login_state: Dict[str, Dict[str, Any]] = {}
+
+
+def get_current_user(authorization: Optional[str] = Header(None)) -> CurrentUser:
+    """从 Authorization: Bearer <token> 中解析当前登录用户。"""
+
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail={
+            "error": {"code": "UNAUTHORIZED", "message": "未登录或令牌缺失。"}
+        })
+    token = authorization.split(" ", 1)[1].strip()
+    user = active_tokens.get(token)
+    if not user:
+        raise HTTPException(status_code=401, detail={
+            "error": {"code": "UNAUTHORIZED", "message": "登录已过期或令牌无效。"}
+        })
+    return user
+
+
+class DevRegisterRequest(BaseModel):
+    """开发环境用的简化注册请求模型。
+
+    仅供本课程项目开发调试使用，不做复杂校验。
+    """
+
+    username: str
+    password: str
+    role: str  # student/teacher/edu_admin/sys_admin
+    email: str
+    full_name: Optional[str] = None
+    class_id: Optional[int] = None          # 学生可选班级
+    student_id_number: Optional[str] = None # 学号
+    teacher_id_number: Optional[str] = None # 工号
+    title: Optional[str] = None             # 教师职称
+
+
+@app.post("/api/v1/dev/register")
+def dev_register(payload: DevRegisterRequest):
+    """开发用注册接口：可以快速创建任意角色用户及其档案。
+
+    - student: 创建 Users + StudentProfiles（可选 class_id、student_id_number、full_name）
+    - teacher: 创建 Users + TeacherProfiles（可选 teacher_id_number、full_name、title）
+    - edu_admin/sys_admin: 仅创建 Users 记录
+    """
+
+    if payload.role not in {"student", "teacher", "edu_admin", "sys_admin"}:
+        raise HTTPException(status_code=400, detail={
+            "error": {"code": "INVALID_ROLE", "message": "role 必须是 student/teacher/edu_admin/sys_admin 之一"}
+        })
+
+    session = SessionLocal()
+    try:
+        # 简单唯一性检查
+        exists = session.query(User).filter(User.username == payload.username, User.is_deleted == False).first()
+        if exists:
+            raise HTTPException(status_code=400, detail={
+                "error": {"code": "USERNAME_EXISTS", "message": "该用户名已存在"}
+            })
+
+        exists_email = session.query(User).filter(User.email == payload.email, User.is_deleted == False).first()
+        if exists_email:
+            raise HTTPException(status_code=400, detail={
+                "error": {"code": "EMAIL_EXISTS", "message": "该邮箱已被使用"}
+            })
+
+        user = User(
+            username=payload.username,
+            password_hash=hash_password(payload.password),
+            role=payload.role,
+            email=payload.email,
+            status="active",
+            is_deleted=False,
+        )
+        session.add(user)
+        session.flush()
+
+        created_profile = None
+
+        if payload.role == "student":
+            # 如果未提供学号，则使用 username 作为学号
+            sid = payload.student_id_number or payload.username
+            # 如果未提供姓名，则用用户名占位
+            full_name = payload.full_name or payload.username
+
+            # 可选班级检查（不存在则直接忽略，让前端简化）
+            class_id = None
+            if payload.class_id:
+                cls = session.query(Class).filter(Class.id == payload.class_id, Class.is_deleted == False).first()
+                class_id = cls.id if cls else None
+
+            created_profile = StudentProfile(
+                user_id=user.id,
+                student_id_number=sid,
+                full_name=full_name,
+                class_id=class_id,
+            )
+            session.add(created_profile)
+
+        elif payload.role == "teacher":
+            tid = payload.teacher_id_number or payload.username
+            full_name = payload.full_name or payload.username
+            created_profile = TeacherProfile(
+                user_id=user.id,
+                teacher_id_number=tid,
+                full_name=full_name,
+                title=payload.title or "讲师",
+            )
+            session.add(created_profile)
+
+        session.commit()
+
+        return {
+            "message": "注册成功（开发模式）",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "role": user.role,
+                "email": user.email,
+            },
+        }
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/auth/login", response_model=LoginResponse)
+def login(payload: LoginRequest):
+    session = SessionLocal()
+    try:
+        user = (
+            session.query(User)
+            .filter(User.username == payload.username, User.is_deleted == False)
+            .first()
+        )
+        if not user:
+            raise HTTPException(status_code=401, detail={
+                "error": {"code": "UNAUTHORIZED", "message": "用户名或密码错误。"}
+            })
+
+        if user.status == "locked":
+            raise HTTPException(status_code=423, detail={
+                "error": {"code": "ACCOUNT_LOCKED", "message": "账户已锁定，请联系管理员。"}
+            })
+
+        state = failed_login_state.get(user.username, {"failed_attempts": 0, "locked_until": None})
+        now = datetime.utcnow()
+        locked_until = state.get("locked_until")
+        if locked_until and now < locked_until:
+            raise HTTPException(status_code=423, detail={
+                "error": {"code": "ACCOUNT_LOCKED", "message": "账户已锁定，请稍后再试。"}
+            })
+
+        # 验证密码（与批量创建学生时的规则保持一致：直接对明文做 SHA-256）
+        expected_hash = user.password_hash or ""
+        if hash_password(payload.password) != expected_hash:
+            state["failed_attempts"] = int(state.get("failed_attempts", 0)) + 1
+            if state["failed_attempts"] >= MAX_FAILED_ATTEMPTS:
+                state["locked_until"] = now + LOGIN_LOCK_DURATION
+                failed_login_state[user.username] = state
+                raise HTTPException(status_code=423, detail={
+                    "error": {"code": "ACCOUNT_LOCKED", "message": "密码错误次数过多，账户已暂时锁定。"}
+                })
+            failed_login_state[user.username] = state
+            raise HTTPException(status_code=401, detail={
+                "error": {"code": "UNAUTHORIZED", "message": "用户名或密码错误。"}
+            })
+
+        # 登录成功：重置计数
+        state["failed_attempts"] = 0
+        state["locked_until"] = None
+        failed_login_state[user.username] = state
+
+        # 根据角色查找对应档案 ID
+        student_profile_id: Optional[int] = None
+        teacher_profile_id: Optional[int] = None
+        if user.role == "student":
+            sp = (
+                session.query(StudentProfile)
+                .filter(StudentProfile.user_id == user.id)
+                .first()
+            )
+            if sp:
+                student_profile_id = sp.id
+        elif user.role == "teacher":
+            tp = (
+                session.query(TeacherProfile)
+                .filter(TeacherProfile.user_id == user.id)
+                .first()
+            )
+            if tp:
+                teacher_profile_id = tp.id
+
+        # 生成令牌并记录当前会话
+        token = secrets.token_urlsafe(32)
+        active_tokens[token] = CurrentUser(
+            id=user.id,
+            username=user.username,
+            role=user.role,
+            student_profile_id=student_profile_id,
+            teacher_profile_id=teacher_profile_id,
+        )
+
+        return LoginResponse(
+            token=token,
+            user=LoginUserInfo(
+                id=user.id,
+                username=user.username,
+                role=user.role,
+                force_password_change=True,
+            ),
+        )
+    finally:
+        session.close()
+
+
+# =====================
+# 课程详情
+# =====================
+
+class TeacherDetailOut(BaseModel):
+    id: int
+    full_name: str
+    title: Optional[str] = None
+    class Config:
+        orm_mode = True
+
+class CourseDetailOut(BaseModel):
+    id: int
+    course_code: str
+    course_name: str
+    credits: float
+    description: Optional[str]
+    department: Optional[str]
+    prerequisites: Optional[str]
+    teachers: List[TeacherDetailOut]
+    class Config:
+        orm_mode = True
+
+@app.get("/api/v1/courses/{id}", response_model=CourseDetailOut)
+def get_course_detail(id: int):
+    session = SessionLocal()
+    try:
+        course = (
+            session.query(Course)
+            .options(joinedload(Course.teaching_assignments).joinedload(TeachingAssignment.teacher))
+            .filter(Course.is_deleted == 0, Course.id == id)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail={
+                "error": {"code": "NOT_FOUND", "message": f"ID为 {id} 的课程未找到。"}
+            })
+        teachers: List[TeacherDetailOut] = []
+        for ta in course.teaching_assignments:
+            if ta.teacher and ta.is_deleted == 0:
+                teachers.append(TeacherDetailOut(
+                    id=ta.teacher.id,
+                    full_name=ta.teacher.full_name,
+                    title=ta.teacher.title
+                ))
+        return CourseDetailOut(
+            id=course.id,
+            course_code=course.course_code,
+            course_name=course.course_name,
+            credits=float(course.credits),
+            description=course.description,
+            department=course.department,
+            prerequisites=course.prerequisites,
+            teachers=teachers
+        )
+    finally:
+        session.close()
+
+
+# =====================
+# 批量创建学生（骨架实现）
+# =====================
+
+@app.post("/api/v1/users/batch-create-students", status_code=status.HTTP_201_CREATED)
+async def batch_create_students(file: UploadFile = File(...)):
+    """从上传的 CSV 创建学生账号和档案，直接写入数据库。
+
+    只支持 UTF-8 编码的 CSV，且至少包含
+    student_id_number, full_name, class_name 三列。
+    """
+
+    raw = await file.read()
+    try:
+        content = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="文件编码必须为 UTF-8")
+
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    if not lines:
+        raise HTTPException(status_code=400, detail="上传文件内容为空")
+
+    headers = [h.strip() for h in lines[0].split(",")]
+    required = ["student_id_number", "full_name", "class_name"]
+    if not all(col in headers for col in required):
+        raise HTTPException(
+            status_code=400,
+            detail=f"文件缺少必要列: {', '.join(required)}",
+        )
+
+    idx = {name: headers.index(name) for name in headers}
+
+    session = SessionLocal()
+    summary = {"total": 0, "created": 0, "failed": 0, "existing": 0}
+    details: List[Dict[str, Any]] = []
+    try:
+        for line in lines[1:]:
+            if not line.strip():
+                continue
+            cols = [c.strip() for c in line.split(",")]
+            # 跳过列数不足的行
+            if len(cols) < len(headers):
+                continue
+
+            student_id_number = cols[idx["student_id_number"]]
+            full_name = cols[idx["full_name"]]
+            class_name = cols[idx["class_name"]]
+            summary["total"] += 1
+
+            if not student_id_number or not full_name or not class_name:
+                summary["failed"] += 1
+                details.append({
+                    "student_id_number": student_id_number or "",
+                    "status": "failed",
+                    "message": "必填字段缺失"
+                })
+                continue
+
+            # 已存在学生
+            existing_student = (
+                session.query(StudentProfile)
+                .filter(StudentProfile.student_id_number == student_id_number)
+                .first()
+            )
+            if existing_student:
+                summary["existing"] += 1
+                details.append({
+                    "student_id_number": student_id_number,
+                    "status": "existing",
+                    "message": "学生档案已存在"
+                })
+                continue
+
+            try:
+                # 查找或创建班级
+                cls = (
+                    session.query(Class)
+                    .filter(Class.class_name == class_name, Class.is_deleted == False)
+                    .first()
+                )
+                if not cls:
+                    cls = Class(class_name=class_name)
+                    session.add(cls)
+                    session.flush()
+
+                # 创建用户
+                username = student_id_number
+                email = f"{student_id_number}@example.com"
+
+                existing_user = (
+                    session.query(User)
+                    .filter(User.username == username, User.is_deleted == False)
+                    .first()
+                )
+                if existing_user:
+                    summary["failed"] += 1
+                    details.append({
+                        "student_id_number": student_id_number,
+                        "status": "failed",
+                        "message": "同名用户已存在"
+                    })
+                    continue
+
+                # 使用固定规则生成初始密码哈希（真实项目应使用随机盐和安全策略）
+                initial_password = "InitialPassword123"
+                password_hash = hash_password(initial_password)
+
+                user = User(
+                    username=username,
+                    password_hash=password_hash,
+                    role="student",
+                    email=email,
+                    status="active",
+                    is_deleted=False,
+                )
+                session.add(user)
+                session.flush()
+
+                student = StudentProfile(
+                    user_id=user.id,
+                    student_id_number=student_id_number,
+                    full_name=full_name,
+                    class_id=cls.id,
+                )
+                session.add(student)
+
+                summary["created"] += 1
+                details.append({
+                    "student_id_number": student_id_number,
+                    "status": "created",
+                    "message": "创建成功",
+                })
+            except Exception as e:
+                session.rollback()
+                summary["failed"] += 1
+                details.append({
+                    "student_id_number": student_id_number,
+                    "status": "failed",
+                    "message": f"数据库错误: {str(e)}",
+                })
+            else:
+                # 小批量处理场景，逐条 flush 即可，统一在循环结束后 commit
+                pass
+
+        session.commit()
+    finally:
+        session.close()
+
+    return {"summary": summary, "details": details}
+
+
+# =====================
+# 忘记密码与重置密码（骨架实现）
+# =====================
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+@app.post("/api/v1/auth/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest):
+    # 骨架：记录请求并返回提示；生产环境需生成并发送重置邮件
+    return {"message": "如果邮箱地址存在，密码重置链接已发送至您的邮箱。"}
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+@app.post("/api/v1/auth/reset-password")
+def reset_password(payload: ResetPasswordRequest):
+    # 骨架：校验令牌并更新密码；生产环境需验证令牌有效性并进行安全更新
+    return {"message": "密码已成功重置，您现在可以使用新密码登录。"}
+
+
+# =====================
+# 学生端：课程修读与成绩查询（骨架实现）
+# =====================
+
+# 添加选课
+@app.post("/api/v1/enrollments", status_code=status.HTTP_201_CREATED)
+def create_enrollment(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    """学生选课：在 Enrollments 表中创建记录。"""
+
+    if current_user.role != "student" or current_user.student_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅学生可以选课")
+
+    course_id = payload.get("course_id")
+    semester = payload.get("semester")
+    if not course_id or not semester:
+        raise HTTPException(status_code=400, detail="course_id 和 semester 为必填字段")
+
+    session = SessionLocal()
+    try:
+        # 检查课程是否存在且未删除
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=400, detail="课程不存在或已被删除")
+
+        # 检查学生是否存在
+        student = session.query(StudentProfile).get(current_user.student_profile_id)
+        if not student:
+            raise HTTPException(status_code=400, detail="学生档案不存在，请联系管理员")
+
+        # 是否已选过该课
+        existing = (
+            session.query(Enrollment)
+            .filter(
+                Enrollment.student_id == student.id,
+                Enrollment.course_id == course_id,
+                Enrollment.semester == semester,
+                Enrollment.is_deleted == False,
+            )
+            .first()
+        )
+        if existing:
+            raise HTTPException(status_code=400, detail="已选修此课程，无需重复选课")
+
+        enrollment = Enrollment(
+            student_id=student.id,
+            course_id=course.id,
+            semester=semester,
+            enrollment_date=datetime.utcnow(),
+            is_deleted=False,
+        )
+        session.add(enrollment)
+        # 先 flush 确保 enrollment.id 可用，然后为该课程的所有成绩项
+        # 初始化一条 pending 状态的成绩记录，方便后续按 grade_id 录入成绩
+        session.flush()
+
+        grade_items = (
+            session.query(GradeItem)
+            .filter(
+                GradeItem.course_id == course.id,
+                GradeItem.is_deleted == False,
+            )
+            .all()
+        )
+        for gi in grade_items:
+            existing_grade = (
+                session.query(Grade)
+                .filter(
+                    Grade.enrollment_id == enrollment.id,
+                    Grade.grade_item_id == gi.id,
+                    Grade.is_deleted == False,
+                )
+                .first()
+            )
+            if existing_grade:
+                continue
+
+            grade = Grade(
+                enrollment_id=enrollment.id,
+                grade_item_id=gi.id,
+                score=None,
+                status="pending",
+                is_deleted=False,
+            )
+            session.add(grade)
+
+        session.commit()
+        session.refresh(enrollment)
+
+        return {
+            "id": enrollment.id,
+            "student_id": enrollment.student_id,
+            "course_id": enrollment.course_id,
+            "semester": enrollment.semester,
+            "enrollment_date": enrollment.enrollment_date.isoformat() + "Z",
+        }
+    finally:
+        session.close()
+
+@app.delete("/api/v1/enrollments/{enrollment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_enrollment(enrollment_id: int, current_user: CurrentUser = Depends(get_current_user)):
+    """学生退选课程：将选课记录标记为删除。"""
+
+    if current_user.role != "student" or current_user.student_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅学生可以退选课程")
+
+    session = SessionLocal()
+    try:
+        enrollment = session.query(Enrollment).get(enrollment_id)
+        if not enrollment or enrollment.is_deleted:
+            return
+
+        # 简化权限校验：只允许当前学生退选自己的课程
+        if enrollment.student_id != current_user.student_profile_id:
+            raise HTTPException(status_code=403, detail="无权退选该课程")
+
+        enrollment.is_deleted = True
+        session.commit()
+        return
+    finally:
+        session.close()
+
+# 取消选课（按课程和学期）
+@app.post("/api/v1/withdraw")
+def remove_enrollment(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    """学生退选课程：根据 course_id + semester 退选当前学生的课程。
+
+    建议前端优先使用 DELETE /api/v1/enrollments/{enrollment_id}，
+    本接口作为兼容保留。
+    """
+
+    if current_user.role != "student" or current_user.student_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅学生可以退选课程")
+
+    course_id = payload.get("course_id")
+    semester = payload.get("semester")
+    if not course_id or not semester:
+        raise HTTPException(status_code=400, detail="course_id 和 semester 为必填字段")
+
+    session = SessionLocal()
+    try:
+        enrollment = (
+            session.query(Enrollment)
+            .filter(
+                Enrollment.student_id == current_user.student_profile_id,
+                Enrollment.course_id == course_id,
+                Enrollment.semester == semester,
+                Enrollment.is_deleted == False,
+            )
+            .first()
+        )
+
+        if not enrollment:
+            raise HTTPException(status_code=404, detail="未找到对应的选课记录")
+
+        enrollment.is_deleted = True
+        session.commit()
+        return {
+            "id": enrollment.id,
+            "student_id": enrollment.student_id,
+            "course_id": enrollment.course_id,
+            "semester": enrollment.semester,
+            "enrollment_date": enrollment.enrollment_date.isoformat() + "Z",
+        }
+    finally:
+        session.close()
+
+# 查看选课列表
+@app.get("/api/v1/me/enrollments")
+def list_my_enrollments(semester: Optional[str] = None, current_user: CurrentUser = Depends(get_current_user)):
+    """查看当前学生已选课程列表。"""
+
+    if current_user.role != "student" or current_user.student_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅学生可以查看自己的选课列表")
+
+    session = SessionLocal()
+    try:
+        q = (
+            session.query(Enrollment)
+            .options(joinedload(Enrollment.course).joinedload(Course.teaching_assignments).joinedload(TeachingAssignment.teacher))
+            .filter(
+                Enrollment.student_id == current_user.student_profile_id,
+                Enrollment.is_deleted == False,
+            )
+        )
+        if semester:
+            q = q.filter(Enrollment.semester == semester)
+
+        enrollments = q.all()
+        results = []
+        for e in enrollments:
+            course = e.course
+            teachers = []
+            for ta in course.teaching_assignments:
+                if ta.teacher and ta.is_deleted == 0:
+                    teachers.append({"id": ta.teacher.id, "full_name": ta.teacher.full_name})
+
+            results.append(
+                {
+                    "enrollment_id": e.id,
+                    "semester": e.semester,
+                    "course": {
+                        "id": course.id,
+                        "course_code": course.course_code,
+                        "course_name": course.course_name,
+                        "credits": float(course.credits),
+                        "teachers": teachers,
+                    },
+                }
+            )
+
+        return results
+    finally:
+        session.close()
+
+@app.get("/api/v1/me/enrollments/{enrollment_id}/tasks")
+def list_enrollment_tasks(
+    enrollment_id: int,
+    status: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """查看某门已选课程下的学习任务完成情况。"""
+
+    if current_user.role != "student" or current_user.student_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅学生可以查看自己的学习任务")
+
+    session = SessionLocal()
+    try:
+        # 简单身份校验：确保该选课记录属于当前学生
+        enrollment = session.query(Enrollment).get(enrollment_id)
+        if not enrollment or enrollment.is_deleted:
+            raise HTTPException(status_code=404, detail="选课记录不存在")
+        if enrollment.student_id != current_user.student_profile_id:
+            raise HTTPException(status_code=403, detail="无权查看该选课记录")
+
+        q = (
+            session.query(TaskProgress)
+            .options(joinedload(TaskProgress.material))
+            .filter(TaskProgress.enrollment_id == enrollment_id)
+        )
+        if status:
+            q = q.filter(TaskProgress.status == status)
+
+        tasks = q.all()
+        results = []
+        for t in tasks:
+            material = t.material
+            results.append(
+                {
+                    "task_progress_id": t.id,
+                    "status": t.status,
+                    "material": {
+                        "id": material.id,
+                        "material_type": material.material_type,
+                        "title": material.title,
+                    },
+                }
+            )
+
+        return results
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/me/enrollments/{enrollment_id}/assignments")
+def list_enrollment_assignments(
+    enrollment_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """查看某门已选课程下教师布置的作业/考试及提交状态。"""
+
+    if current_user.role != "student" or current_user.student_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅学生可以查看自己的作业任务")
+
+    session = SessionLocal()
+    try:
+        enrollment = session.query(Enrollment).get(enrollment_id)
+        if not enrollment or enrollment.is_deleted:
+            raise HTTPException(status_code=404, detail="选课记录不存在")
+        if enrollment.student_id != current_user.student_profile_id:
+            raise HTTPException(status_code=403, detail="无权查看该选课记录")
+
+        assignments = (
+            session.query(Assignment)
+            .filter(
+                Assignment.course_id == enrollment.course_id,
+                Assignment.is_deleted == False,
+            )
+            .order_by(Assignment.id.desc())
+            .all()
+        )
+
+        results = []
+        for a in assignments:
+            submission = (
+                session.query(AssignmentSubmission)
+                .filter(
+                    AssignmentSubmission.assignment_id == a.id,
+                    AssignmentSubmission.student_id == current_user.student_profile_id,
+                    AssignmentSubmission.is_deleted == False,
+                )
+                .order_by(AssignmentSubmission.submitted_at.desc())
+                .first()
+            )
+
+            if submission:
+                status_val = "graded" if submission.score is not None else "submitted"
+                last_submitted_at = (
+                    submission.submitted_at.isoformat() + "Z" if submission.submitted_at else None
+                )
+                score_val = float(submission.score) if submission.score is not None else None
+            else:
+                status_val = "todo"
+                last_submitted_at = None
+                score_val = None
+
+            results.append(
+                {
+                    "assignment_id": a.id,
+                    "title": a.title,
+                    "type": a.type,
+                    "deadline": a.deadline.isoformat() + "Z" if a.deadline else None,
+                    "status": status_val,
+                    "last_submitted_at": last_submitted_at,
+                    "score": score_val,
+                }
+            )
+
+        return results
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/me/enrollments/{enrollment_id}/materials")
+def list_enrollment_materials(
+    enrollment_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """学生查看某门已选课程的资料列表。
+
+    仅返回教师上传的普通资料（document/video/carousel_image），不包含 config。
+    """
+
+    if current_user.role != "student" or current_user.student_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅学生可以查看课程资料")
+
+    session = SessionLocal()
+    try:
+        enrollment = session.query(Enrollment).get(enrollment_id)
+        if not enrollment or enrollment.is_deleted:
+            raise HTTPException(status_code=404, detail="选课记录不存在")
+        if enrollment.student_id != current_user.student_profile_id:
+            raise HTTPException(status_code=403, detail="无权查看该选课记录")
+
+        # 课程必须存在且未删除
+        course = session.query(Course).get(enrollment.course_id)
+        if not course or course.is_deleted:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        q = (
+            session.query(CourseMaterial)
+            .options(joinedload(CourseMaterial.uploader))
+            .filter(
+                CourseMaterial.course_id == course.id,
+                CourseMaterial.is_deleted == False,
+                CourseMaterial.material_type != "config",
+            )
+            .order_by(CourseMaterial.display_order, CourseMaterial.id.desc())
+        )
+
+        base_dir = os.path.dirname(__file__)
+        results = []
+        for m in q.all():
+            file_size = None
+            if m.file_path_or_content:
+                rel_path = m.file_path_or_content.lstrip("/")
+                fs_path = os.path.join(base_dir, rel_path.replace("/", os.sep))
+                try:
+                    file_size = os.path.getsize(fs_path)
+                except OSError:
+                    file_size = None
+
+            uploader_name = None
+            if m.uploader:
+                tp = (
+                    session.query(TeacherProfile)
+                    .filter(TeacherProfile.user_id == m.uploader.id)
+                    .first()
+                )
+                uploader_name = tp.full_name if tp else m.uploader.username
+
+            results.append(
+                {
+                    "id": m.id,
+                    "course_id": m.course_id,
+                    "material_type": m.material_type,
+                    "title": m.title,
+                    "file_path_or_content": m.file_path_or_content,
+                    "display_order": m.display_order,
+                    "uploaded_by": m.uploaded_by,
+                    "uploader_name": uploader_name,
+                    "created_at": m.created_at.isoformat() + "Z" if m.created_at else None,
+                    "file_size": file_size,
+                }
+            )
+
+        return results
+    finally:
+        session.close()
+
+@app.get("/api/v1/me/grades/summary")
+def get_grades_summary(semester: Optional[str] = None, current_user: CurrentUser = Depends(get_current_user)):
+    """按学期汇总学生成绩和学分绩点。"""
+
+    if current_user.role != "student" or current_user.student_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅学生可以查看自己的成绩汇总")
+
+    session = SessionLocal()
+
+    def score_to_gpa(score: float) -> float:
+        if score >= 90:
+            return 4.0
+        if score >= 85:
+            return 3.7
+        if score >= 80:
+            return 3.3
+        if score >= 75:
+            return 3.0
+        if score >= 70:
+            return 2.7
+        if score >= 65:
+            return 2.3
+        if score >= 60:
+            return 2.0
+        return 0.0
+
+    try:
+        # 找到当前学生的所有选课记录
+        enroll_q = session.query(Enrollment).filter(
+            Enrollment.student_id == current_user.student_profile_id,
+            Enrollment.is_deleted == False,
+        )
+        if semester:
+            enroll_q = enroll_q.filter(Enrollment.semester == semester)
+
+        enrollments = enroll_q.all()
+        result: Dict[str, Any] = {}
+
+        for e in enrollments:
+            sem = e.semester
+            if sem not in result:
+                result[sem] = {"courses": [], "semester_gpa": 0.0, "total_credits": 0.0}
+
+            # 计算该课程的总评成绩
+            grades = (
+                session.query(Grade, GradeItem)
+                .join(GradeItem, Grade.grade_item_id == GradeItem.id)
+                .filter(
+                    Grade.enrollment_id == e.id,
+                    Grade.is_deleted == False,
+                    GradeItem.is_deleted == False,
+                )
+                .all()
+            )
+            total_score = 0.0
+            for g, gi in grades:
+                if g.score is not None:
+                    total_score += float(g.score) * float(gi.weight)
+
+            course = session.query(Course).get(e.course_id)
+            if not course:
+                continue
+
+            gpa = score_to_gpa(total_score)
+            result[sem]["courses"].append(
+                {
+                    "enrollment_id": e.id,
+                    "course_name": course.course_name,
+                    "credits": float(course.credits),
+                    "final_score": round(total_score, 1),
+                    "gpa": gpa,
+                }
+            )
+            result[sem]["total_credits"] += float(course.credits)
+
+        # 计算每学期的 GPA（学分加权）
+        for sem, info in result.items():
+            total_points = 0.0
+            for c in info["courses"]:
+                total_points += c["gpa"] * c["credits"]
+            if info["total_credits"] > 0:
+                info["semester_gpa"] = round(total_points / info["total_credits"], 2)
+
+        return result
+    finally:
+        session.close()
+
+@app.get("/api/v1/me/enrollments/{enrollment_id}/grades")
+def get_enrollment_grades(enrollment_id: int, current_user: CurrentUser = Depends(get_current_user)):
+    """获取某门课程的详细成绩构成。"""
+
+    if current_user.role != "student" or current_user.student_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅学生可以查看自己的课程成绩")
+
+    session = SessionLocal()
+    try:
+        enrollment = session.query(Enrollment).get(enrollment_id)
+        if not enrollment or enrollment.is_deleted:
+            raise HTTPException(status_code=404, detail="选课记录不存在")
+        if enrollment.student_id != current_user.student_profile_id:
+            raise HTTPException(status_code=403, detail="无权查看该选课记录")
+
+        course = session.query(Course).get(enrollment.course_id)
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        rows = (
+            session.query(Grade, GradeItem)
+            .join(GradeItem, Grade.grade_item_id == GradeItem.id)
+            .filter(
+                Grade.enrollment_id == enrollment_id,
+                Grade.is_deleted == False,
+                GradeItem.is_deleted == False,
+            )
+            .all()
+        )
+
+        grade_items = []
+        final_score = 0.0
+        for g, gi in rows:
+            score_val = float(g.score) if g.score is not None else None
+            if score_val is not None:
+                final_score += score_val * float(gi.weight)
+            grade_items.append(
+                {
+                    "item_name": gi.item_name,
+                    "weight": float(gi.weight),
+                    "score": score_val,
+                }
+            )
+
+        return {
+            "course_name": course.course_name,
+            "final_score": round(final_score, 1),
+            "grade_items": grade_items,
+        }
+    finally:
+        session.close()
+
+
+# =====================
+# 教师端：课程与成绩管理（接入数据库实现）
+# =====================
+
+@app.get("/api/v1/me/teaching-assignments")
+def list_my_teaching_assignments(
+    semester: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """获取当前登录教师的授课列表。"""
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以查看授课列表")
+
+    session = SessionLocal()
+    try:
+        q = (
+            session.query(TeachingAssignment)
+            .options(joinedload(TeachingAssignment.course))
+            .filter(
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+        )
+        if semester:
+            q = q.filter(TeachingAssignment.semester == semester)
+
+        assignments = q.all()
+        results = []
+        for ta in assignments:
+            course = ta.course
+            if not course or course.is_deleted:
+                continue
+            results.append(
+                {
+                    "teaching_assignment_id": ta.id,
+                    "semester": ta.semester,
+                    "course": {
+                        "id": course.id,
+                        "course_code": course.course_code,
+                        "course_name": course.course_name,
+                        "credits": float(course.credits),
+                        "description": course.description,
+                        "department": course.department,
+                        "prerequisites": course.prerequisites,
+                    },
+                }
+            )
+        return results
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/courses", status_code=status.HTTP_201_CREATED)
+def create_course(
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """教师创建新课程并自动建立授课任务。
+
+    要求：
+    - 当前用户为教师；
+    - 提供课程代码、课程名称、学分、学期；
+    - 可选：先修课、课程描述、开课院系。
+
+    创建完成后，会为当前教师在指定学期自动创建一条 TeachingAssignment，
+    使其在“查询授课列表”中立即可见。
+    """
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以创建课程")
+
+    course_code = (payload.get("course_code") or "").strip()
+    course_name = (payload.get("course_name") or "").strip()
+    credits_raw = payload.get("credits")
+    semester = (payload.get("semester") or "").strip()
+    description = payload.get("description")
+    prerequisites = payload.get("prerequisites")
+    department = payload.get("department")
+
+    if not course_code or not course_name or credits_raw is None or not semester:
+        raise HTTPException(
+            status_code=400,
+            detail="course_code、course_name、credits、semester 为必填字段",
+        )
+
+    try:
+        credits_val = float(credits_raw)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="credits 必须为数字")
+
+    # 数据库中 credits 定义为 DECIMAL(3,1)，这里做范围与精度控制，
+    # 避免因小数位过多或数值过大触发数据库 DataError。
+    credits_val = round(credits_val, 1)
+    if credits_val <= 0 or credits_val > 99.9:
+        raise HTTPException(status_code=400, detail="学分必须在 0 到 99.9 之间")
+
+    session = SessionLocal()
+    try:
+        # 检查课程代码是否已存在且未删除
+        existing = (
+            session.query(Course)
+            .filter(Course.course_code == course_code, Course.is_deleted == 0)
+            .first()
+        )
+        if existing:
+            raise HTTPException(status_code=400, detail="课程代码已存在")
+
+        course = Course(
+            course_code=course_code,
+            course_name=course_name,
+            credits=credits_val,
+            description=description,
+            department=department,
+            prerequisites=prerequisites,
+            is_deleted=0,
+        )
+        session.add(course)
+        session.flush()  # 获取 course.id
+
+        ta = TeachingAssignment(
+            teacher_id=current_user.teacher_profile_id,
+            course_id=course.id,
+            semester=semester,
+            is_deleted=0,
+        )
+        session.add(ta)
+
+        session.commit()
+        session.refresh(course)
+        session.refresh(ta)
+
+        return {
+            "course": {
+                "id": course.id,
+                "course_code": course.course_code,
+                "course_name": course.course_name,
+                "credits": float(course.credits),
+                "description": course.description,
+                "department": course.department,
+                "prerequisites": course.prerequisites,
+            },
+            "teaching_assignment": {
+                "id": ta.id,
+                "semester": ta.semester,
+            },
+        }
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/courses/{course_id}/materials", status_code=status.HTTP_201_CREATED)
+async def upload_course_materials(
+    course_id: int,
+    material_type: str = Form(...),
+    title: str = Form(...),
+    file: UploadFile = File(...),
+    display_order: Optional[int] = Form(None),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """为课程上传资料并写入 CourseMaterials 表。"""
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以上传课程资料")
+
+    session = SessionLocal()
+    try:
+        # 校验课程和授课关系
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以上传本课程资料")
+
+        # 保存文件到本地 uploads 目录
+        base_dir = os.path.dirname(__file__)
+        dest_dir = os.path.join(base_dir, "uploads", "courses", str(course_id), "materials")
+        os.makedirs(dest_dir, exist_ok=True)
+
+        file_bytes = await file.read()
+        filename = file.filename or "uploaded_file"
+        dest_path = os.path.join(dest_dir, filename)
+        with open(dest_path, "wb") as f:
+            f.write(file_bytes)
+
+        # 相对路径用于前端访问
+        rel_path = f"/uploads/courses/{course_id}/materials/{filename}"
+
+        material = CourseMaterial(
+            course_id=course_id,
+            material_type=material_type,
+            title=title,
+            file_path_or_content=rel_path,
+            display_order=display_order or 0,
+            uploaded_by=current_user.id,
+            is_deleted=False,
+        )
+        session.add(material)
+        session.commit()
+        session.refresh(material)
+
+        return {
+            "id": material.id,
+            "course_id": material.course_id,
+            "material_type": material.material_type,
+            "title": material.title,
+            "file_path_or_content": material.file_path_or_content,
+            "display_order": material.display_order,
+            "uploaded_by": material.uploaded_by,
+            "created_at": material.created_at.isoformat() + "Z" if material.created_at else None,
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/courses/{course_id}/materials")
+def list_course_materials(
+    course_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """列出某课程下教师上传的资料列表（不含 config）。"""
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以查看课程资料")
+
+    session = SessionLocal()
+    try:
+        # 校验课程和授课关系
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以查看本课程资料")
+
+        q = (
+            session.query(CourseMaterial)
+            .options(joinedload(CourseMaterial.uploader))
+            .filter(
+                CourseMaterial.course_id == course_id,
+                CourseMaterial.is_deleted == False,
+                CourseMaterial.material_type != "config",
+            )
+            .order_by(CourseMaterial.display_order, CourseMaterial.id.desc())
+        )
+
+        base_dir = os.path.dirname(__file__)
+        results = []
+        for m in q.all():
+            file_size = None
+            if m.file_path_or_content:
+                rel_path = m.file_path_or_content.lstrip("/")
+                fs_path = os.path.join(base_dir, rel_path.replace("/", os.sep))
+                try:
+                    file_size = os.path.getsize(fs_path)
+                except OSError:
+                    file_size = None
+
+            uploader_name = None
+            if m.uploader:
+                # 优先尝试通过 TeacherProfile 获取教师姓名
+                tp = (
+                    session.query(TeacherProfile)
+                    .filter(TeacherProfile.user_id == m.uploader.id)
+                    .first()
+                )
+                uploader_name = tp.full_name if tp else m.uploader.username
+
+            results.append(
+                {
+                    "id": m.id,
+                    "course_id": m.course_id,
+                    "material_type": m.material_type,
+                    "title": m.title,
+                    "file_path_or_content": m.file_path_or_content,
+                    "display_order": m.display_order,
+                    "uploaded_by": m.uploaded_by,
+                    "uploader_name": uploader_name,
+                    "created_at": m.created_at.isoformat() + "Z" if m.created_at else None,
+                    "file_size": file_size,
+                }
+            )
+
+        return results
+    finally:
+        session.close()
+
+
+@app.patch("/api/v1/courses/{course_id}/config")
+def update_course_config(
+    course_id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """更新课程简介和配置（存储在 CourseMaterials 中的 config 记录）。"""
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以更新课程配置")
+
+    session = SessionLocal()
+    try:
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以配置本课程")
+
+        description = payload.get("description")
+        if description is not None:
+            course.description = description
+
+        # 课程配置以 JSON 形式保存在 material_type = 'config' 的记录中
+        cfg = (
+            session.query(CourseMaterial)
+            .filter(
+                CourseMaterial.course_id == course_id,
+                CourseMaterial.material_type == "config",
+                CourseMaterial.is_deleted == False,
+            )
+            .first()
+        )
+        if not cfg:
+            cfg = CourseMaterial(
+                course_id=course_id,
+                material_type="config",
+                title="config",
+                file_path_or_content="{}",
+                display_order=0,
+                uploaded_by=current_user.id,
+                is_deleted=False,
+            )
+            session.add(cfg)
+
+        try:
+            current_config = json.loads(cfg.file_path_or_content or "{}")
+        except Exception:
+            current_config = {}
+
+        for key in ["allow_comments", "allow_notes"]:
+            if key in payload:
+                current_config[key] = payload[key]
+
+        cfg.file_path_or_content = json.dumps(current_config, ensure_ascii=False)
+        session.commit()
+        session.refresh(course)
+
+        return {
+            "course_id": course.id,
+            "description": course.description,
+            "config": current_config,
+        }
+    finally:
+        session.close()
+
+
+# 新增：教师可编辑自己授课课程的主信息（不含 course_code/教师/学生/资料/作业）
+@app.patch("/api/v1/courses/{course_id}")
+def teacher_update_course(
+    course_id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """仅授课教师可编辑课程主信息（不含 course_code/教师/学生/资料/作业）"""
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以编辑课程")
+
+    session = SessionLocal()
+    try:
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以编辑本课程")
+
+        # 允许编辑的字段
+        editable_fields = ["course_name", "credits", "description", "department", "prerequisites"]
+        updated = False
+        for key in editable_fields:
+            if key in payload:
+                if key == "credits":
+                    try:
+                        val = float(payload[key])
+                        val = round(val, 1)
+                        if val <= 0 or val > 99.9:
+                            raise ValueError
+                        setattr(course, key, val)
+                    except Exception:
+                        raise HTTPException(status_code=400, detail="credits 必须为 0~99.9 的数字")
+                else:
+                    setattr(course, key, payload[key])
+                updated = True
+
+        if not updated:
+            raise HTTPException(status_code=400, detail="缺少可更新字段")
+
+        session.commit()
+        session.refresh(course)
+        return {
+            "id": course.id,
+            "course_code": course.course_code,
+            "course_name": course.course_name,
+            "credits": float(course.credits),
+            "description": course.description,
+            "department": course.department,
+            "prerequisites": course.prerequisites,
+        }
+    finally:
+        session.close()
+
+
+@app.patch("/api/v1/course-materials/{material_id}")
+def update_course_material(
+    material_id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """更新课程资料的标题或显示顺序。"""
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以编辑课程资料")
+
+    session = SessionLocal()
+    try:
+        material = (
+            session.query(CourseMaterial)
+            .options(joinedload(CourseMaterial.course))
+            .get(material_id)
+        )
+        if not material or material.is_deleted:
+            raise HTTPException(status_code=404, detail="课程资料不存在")
+
+        course = material.course
+        if not course or course.is_deleted:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course.id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以编辑本课程资料")
+
+        updated = False
+        if "title" in payload:
+            material.title = payload["title"]
+            updated = True
+        if "display_order" in payload:
+            try:
+                material.display_order = int(payload["display_order"]) if payload["display_order"] is not None else material.display_order
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="display_order 必须为整数")
+            updated = True
+
+        if not updated:
+            raise HTTPException(status_code=400, detail="缺少可更新字段")
+
+        session.commit()
+        session.refresh(material)
+
+        return {
+            "id": material.id,
+            "course_id": material.course_id,
+            "material_type": material.material_type,
+            "title": material.title,
+            "file_path_or_content": material.file_path_or_content,
+            "display_order": material.display_order,
+        }
+    finally:
+        session.close()
+
+
+@app.delete("/api/v1/course-materials/{material_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_course_material(
+    material_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """撤回（软删除）一条课程资料记录。"""
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以撤回课程资料")
+
+    session = SessionLocal()
+    try:
+        material = (
+            session.query(CourseMaterial)
+            .options(joinedload(CourseMaterial.course))
+            .get(material_id)
+        )
+        if not material or material.is_deleted:
+            return
+
+        course = material.course
+        if not course or course.is_deleted:
+            return
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course.id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以撤回本课程资料")
+
+        material.is_deleted = True
+        session.commit()
+        return
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/courses/{course_id}/assignments")
+def list_course_assignments(
+    course_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """获取指定课程的所有作业列表（教师用）"""
+    
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以查看作业列表")
+
+    session = SessionLocal()
+    try:
+        # 验证课程存在
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        # 验证教师权限
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以查看本课程作业")
+
+        # 查询作业列表
+        assignments = (
+            session.query(Assignment)
+            .filter(Assignment.course_id == course_id, Assignment.is_deleted == 0)
+            .order_by(Assignment.deadline.desc(), Assignment.created_at.desc())
+            .all()
+        )
+
+        result = []
+        for assignment in assignments:
+            result.append({
+                "id": assignment.id,
+                "course_id": assignment.course_id,
+                "title": assignment.title,
+                "description": assignment.description,
+                "type": assignment.type,
+                "deadline": assignment.deadline.isoformat() + "Z" if assignment.deadline else None,
+                "file_path": assignment.file_path,
+                "created_at": assignment.created_at.isoformat() + "Z" if assignment.created_at else None,
+            })
+
+        return result
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/courses/{course_id}/assignments", status_code=status.HTTP_201_CREATED)
+def create_assignment(
+    course_id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """创建作业/考试记录。"""
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以布置作业")
+
+    session = SessionLocal()
+    try:
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以布置本课程作业")
+
+        title = payload.get("title")
+        if not title:
+            raise HTTPException(status_code=400, detail="title 为必填字段")
+
+        type_val = payload.get("type")
+        if type_val not in {"assignment", "exam"}:
+            raise HTTPException(status_code=400, detail="type 必须为 'assignment' 或 'exam'")
+
+        deadline_str = payload.get("deadline")
+        deadline_dt = parse_iso_datetime(deadline_str) if deadline_str else None
+
+        assignment = Assignment(
+            course_id=course_id,
+            title=title,
+            description=payload.get("description"),
+            file_path=payload.get("file_path"),
+            deadline=deadline_dt,
+            type=type_val,
+            is_deleted=False,
+        )
+        session.add(assignment)
+        session.commit()
+        session.refresh(assignment)
+
+        return {
+            "id": assignment.id,
+            "course_id": assignment.course_id,
+            "title": assignment.title,
+            "type": assignment.type,
+            "deadline": assignment.deadline.isoformat() + "Z" if assignment.deadline else None,
+        }
+    finally:
+        session.close()
+
+
+@app.patch("/api/v1/assignments/{assignment_id}")
+def update_assignment(
+    assignment_id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """编辑作业/考试信息"""
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以编辑作业")
+
+    session = SessionLocal()
+    try:
+        assignment = session.query(Assignment).get(assignment_id)
+        if not assignment or assignment.is_deleted:
+            raise HTTPException(status_code=404, detail="作业不存在")
+
+        # 验证权限：必须是授课教师
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == assignment.course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以编辑本课程作业")
+
+        # 更新字段
+        if "title" in payload:
+            assignment.title = payload["title"]
+        if "description" in payload:
+            assignment.description = payload["description"]
+        if "file_path" in payload:
+            assignment.file_path = payload["file_path"]
+        if "deadline" in payload:
+            deadline_str = payload["deadline"]
+            assignment.deadline = parse_iso_datetime(deadline_str) if deadline_str else None
+        if "type" in payload:
+            if payload["type"] not in {"assignment", "exam"}:
+                raise HTTPException(status_code=400, detail="type 必须为 'assignment' 或 'exam'")
+            assignment.type = payload["type"]
+
+        session.commit()
+        session.refresh(assignment)
+
+        return {
+            "id": assignment.id,
+            "course_id": assignment.course_id,
+            "title": assignment.title,
+            "description": assignment.description,
+            "type": assignment.type,
+            "deadline": assignment.deadline.isoformat() + "Z" if assignment.deadline else None,
+            "file_path": assignment.file_path,
+        }
+    finally:
+        session.close()
+
+
+@app.delete("/api/v1/assignments/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_assignment(
+    assignment_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """删除（软删除）作业/考试"""
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以删除作业")
+
+    session = SessionLocal()
+    try:
+        assignment = session.query(Assignment).get(assignment_id)
+        if not assignment or assignment.is_deleted:
+            return
+
+        # 验证权限：必须是授课教师
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == assignment.course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以删除本课程作业")
+
+        assignment.is_deleted = True
+        session.commit()
+        return
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/assignments/{assignment_id}/submissions")
+def list_submissions(
+    assignment_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """查看某个作业/考试的学生提交情况。"""
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以查看提交情况")
+
+    session = SessionLocal()
+    try:
+        assignment = session.query(Assignment).get(assignment_id)
+        if not assignment or assignment.is_deleted:
+            raise HTTPException(status_code=404, detail="作业/考试不存在")
+
+        # 权限：必须是本课程授课教师
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == assignment.course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以查看提交情况")
+
+        submissions = (
+            session.query(AssignmentSubmission)
+            .options(joinedload(AssignmentSubmission.student))
+            .filter(
+                AssignmentSubmission.assignment_id == assignment_id,
+                AssignmentSubmission.is_deleted == False,
+            )
+            .all()
+        )
+
+        results = []
+        for sub in submissions:
+            status_val = "graded" if sub.score is not None else "pending"
+            results.append(
+                {
+                    "submission_id": sub.id,
+                    "student": {
+                        "id": sub.student.id if sub.student else None,
+                        "full_name": sub.student.full_name if sub.student else None,
+                        "student_id": sub.student.student_id if sub.student else None,
+                    },
+                    "submitted_at": sub.submitted_at.isoformat() + "Z" if sub.submitted_at else None,
+                    "status": status_val,
+                    "score": float(sub.score) if sub.score is not None else None,
+                    "feedback": sub.feedback,
+                    "file_path": sub.file_path,
+                    "graded_at": sub.graded_at.isoformat() + "Z" if sub.graded_at else None,
+                }
+            )
+
+        return results
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/assignments/{assignment_id}/submit")
+async def submit_assignment(
+    assignment_id: int,
+    content: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """学生提交作业/考试，支持文本内容和/或文件上传。
+
+    - 要求当前用户为 student 并且已选修该课程；
+    - 若同时提供文本和文件，则都保存，其中文本会被写入一个 .txt 文件。
+    """
+
+    if current_user.role != "student" or current_user.student_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅学生可以提交作业")
+
+    if not content and not file:
+        raise HTTPException(status_code=400, detail="必须提供文本内容或上传文件")
+
+    session = SessionLocal()
+    try:
+        assignment = session.query(Assignment).get(assignment_id)
+        if not assignment or assignment.is_deleted:
+            raise HTTPException(status_code=404, detail="作业/考试不存在")
+
+        # 确认学生已选修该课程
+        enrollment = (
+            session.query(Enrollment)
+            .filter(
+                Enrollment.student_id == current_user.student_profile_id,
+                Enrollment.course_id == assignment.course_id,
+                Enrollment.is_deleted == False,
+            )
+            .first()
+        )
+        if not enrollment:
+            raise HTTPException(status_code=403, detail="未选修该课程，无法提交作业")
+
+        # 保存文件/文本到本地
+        base_dir = os.path.dirname(__file__)
+        dest_dir = os.path.join(
+            base_dir,
+            "uploads",
+            "assignments",
+            str(assignment_id),
+            "students",
+            str(current_user.student_profile_id),
+        )
+        os.makedirs(dest_dir, exist_ok=True)
+
+        saved_paths: list[str] = []
+
+        if content:
+            text_filename = f"submission-text-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.txt"
+            text_path = os.path.join(dest_dir, text_filename)
+            with open(text_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            rel_text_path = f"/uploads/assignments/{assignment_id}/students/{current_user.student_profile_id}/{text_filename}"
+            saved_paths.append(rel_text_path)
+
+        if file is not None:
+            file_bytes = await file.read()
+            filename = file.filename or "submission-file"
+            file_path = os.path.join(dest_dir, filename)
+            with open(file_path, "wb") as f:
+                f.write(file_bytes)
+            rel_file_path = f"/uploads/assignments/{assignment_id}/students/{current_user.student_profile_id}/{filename}"
+            saved_paths.append(rel_file_path)
+
+        # 使用一条提交记录，更新为最新提交
+        submission = (
+            session.query(AssignmentSubmission)
+            .filter(
+                AssignmentSubmission.assignment_id == assignment_id,
+                AssignmentSubmission.student_id == current_user.student_profile_id,
+            )
+            .first()
+        )
+        if not submission:
+            submission = AssignmentSubmission(
+                assignment_id=assignment_id,
+                student_id=current_user.student_profile_id,
+                is_deleted=False,
+            )
+            session.add(submission)
+
+        # 简化：若有多个文件/文本，则仅记录第一个路径
+        submission.file_path = saved_paths[0] if saved_paths else None
+        submission.submitted_at = datetime.utcnow()
+        session.commit()
+        session.refresh(submission)
+
+        return {
+            "submission_id": submission.id,
+            "assignment_id": submission.assignment_id,
+            "status": "submitted",
+            "submitted_at": submission.submitted_at.isoformat() + "Z",
+        }
+    finally:
+        session.close()
+
+
+@app.put("/api/v1/assignment-submissions/{submission_id}")
+def update_assignment_submission(
+    submission_id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """教师修改单条作业提交的成绩与评语。
+
+    仅修改 AssignmentSubmissions.score / feedback 等字段，
+    不与 Grades 表联动，以保持作业得分与课程总评解耦。
+    """
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以修改作业成绩")
+
+    session = SessionLocal()
+    try:
+        submission = (
+            session.query(AssignmentSubmission)
+            .options(joinedload(AssignmentSubmission.assignment))
+            .get(submission_id)
+        )
+        if not submission or submission.is_deleted:
+            raise HTTPException(status_code=404, detail="作业提交记录不存在")
+
+        assignment = submission.assignment
+        if not assignment or assignment.is_deleted:
+            raise HTTPException(status_code=404, detail="作业/考试不存在")
+
+        # 权限：必须是该课程的授课教师
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == assignment.course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以批改本作业")
+
+        updated = False
+
+        if "score" in payload:
+            if payload["score"] is None or payload["score"] == "":
+                submission.score = None
+            else:
+                try:
+                    submission.score = float(payload["score"])
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="score 必须为数字或留空")
+            submission.graded_at = datetime.utcnow()
+            submission.grader_id = current_user.id
+            updated = True
+
+        if "feedback" in payload:
+            submission.feedback = payload["feedback"]
+            updated = True
+
+        if not updated:
+            raise HTTPException(status_code=400, detail="缺少可更新字段")
+
+        session.commit()
+        session.refresh(submission)
+
+        return {
+            "submission_id": submission.id,
+            "assignment_id": submission.assignment_id,
+            "score": float(submission.score) if submission.score is not None else None,
+            "feedback": submission.feedback,
+            "graded_at": submission.graded_at.isoformat() + "Z" if submission.graded_at else None,
+        }
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/courses/{course_id}/grade-items", status_code=status.HTTP_201_CREATED)
+def create_grade_item(
+    course_id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """为课程创建成绩构成项，并校验权重不超过 1。"""
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以设置成绩项")
+
+    session = SessionLocal()
+    try:
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以设置本课程成绩项")
+
+        item_name = payload.get("item_name")
+        weight = payload.get("weight")
+        if item_name is None or weight is None:
+            raise HTTPException(status_code=400, detail="item_name 和 weight 为必填字段")
+
+        try:
+            weight_val = float(weight)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="weight 必须为数字")
+
+        # 现有权重之和
+        existing_items = (
+            session.query(GradeItem)
+            .filter(
+                GradeItem.course_id == course_id,
+                GradeItem.is_deleted == False,
+            )
+            .all()
+        )
+        total_weight = sum(float(it.weight) for it in existing_items) + weight_val
+        if total_weight > 1.0 + 1e-6:
+            raise HTTPException(status_code=400, detail="所有成绩项权重之和超过 1")
+
+        gi = GradeItem(
+            course_id=course_id,
+            item_name=item_name,
+            weight=weight_val,
+            description=payload.get("description"),
+            is_deleted=False,
+        )
+        session.add(gi)
+        session.commit()
+        session.refresh(gi)
+
+        return {
+            "id": gi.id,
+            "course_id": gi.course_id,
+            "item_name": gi.item_name,
+            "weight": float(gi.weight),
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/courses/{course_id}/grade-items")
+def list_grade_items(
+    course_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """获取课程的所有成绩项"""
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以查看成绩项")
+
+    session = SessionLocal()
+    try:
+        course = session.query(Course).filter(Course.id == course_id, Course.is_deleted == 0).first()
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以查看本课程成绩项")
+
+        items = (
+            session.query(GradeItem)
+            .filter(GradeItem.course_id == course_id, GradeItem.is_deleted == False)
+            .all()
+        )
+
+        return [
+            {
+                "id": item.id,
+                "course_id": item.course_id,
+                "item_name": item.item_name,
+                "weight": float(item.weight),
+                "description": item.description,
+            }
+            for item in items
+        ]
+    finally:
+        session.close()
+
+
+@app.put("/api/v1/grade-items/{item_id}")
+def update_grade_item(
+    item_id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """修改成绩项"""
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以修改成绩项")
+
+    session = SessionLocal()
+    try:
+        item = session.query(GradeItem).get(item_id)
+        if not item or item.is_deleted:
+            raise HTTPException(status_code=404, detail="成绩项不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == item.course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以修改本课程成绩项")
+
+        # 如果修改权重，检查总权重
+        if "weight" in payload:
+            try:
+                new_weight = float(payload["weight"])
+            except ValueError:
+                raise HTTPException(status_code=400, detail="weight 必须为数字")
+
+            existing_items = (
+                session.query(GradeItem)
+                .filter(
+                    GradeItem.course_id == item.course_id,
+                    GradeItem.is_deleted == False,
+                    GradeItem.id != item_id,
+                )
+                .all()
+            )
+            total_weight = sum(float(it.weight) for it in existing_items) + new_weight
+            if total_weight > 1.0 + 1e-6:
+                raise HTTPException(status_code=400, detail="所有成绩项权重之和超过 1")
+
+            item.weight = new_weight
+
+        if "item_name" in payload:
+            item.item_name = payload["item_name"]
+        if "description" in payload:
+            item.description = payload["description"]
+
+        session.commit()
+        session.refresh(item)
+
+        return {
+            "id": item.id,
+            "course_id": item.course_id,
+            "item_name": item.item_name,
+            "weight": float(item.weight),
+            "description": item.description,
+        }
+    finally:
+        session.close()
+
+
+@app.delete("/api/v1/grade-items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_grade_item(
+    item_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """删除成绩项（软删除），同时将相关的所有学生成绩标记为删除"""
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以删除成绩项")
+
+    session = SessionLocal()
+    try:
+        item = session.query(GradeItem).get(item_id)
+        if not item or item.is_deleted:
+            return
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == item.course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以删除本课程成绩项")
+
+        item.is_deleted = True
+        
+        # 将该成绩项的所有学生成绩标记为删除
+        session.query(Grade).filter(Grade.grade_item_id == item_id).update({"is_deleted": True})
+        
+        session.commit()
+        return
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/courses/{course_id}/grade-items/batch", status_code=status.HTTP_200_OK)
+def batch_update_grade_items(
+    course_id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """批量设置课程成绩项（会删除旧的成绩项和所有相关成绩）"""
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以设置成绩项")
+
+    session = SessionLocal()
+    try:
+        course = session.query(Course).filter(Course.id == course_id, Course.is_deleted == 0).first()
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以设置本课程成绩项")
+
+        items = payload.get("items", [])
+        if not items:
+            raise HTTPException(status_code=400, detail="items 不能为空")
+
+        # 检查权重总和
+        total_weight = sum(float(item.get("weight", 0)) for item in items)
+        if abs(total_weight - 1.0) > 1e-6:
+            raise HTTPException(status_code=400, detail=f"成绩项权重之和必须等于1，当前为{total_weight}")
+
+        # 删除旧的成绩项（软删除）
+        old_items = (
+            session.query(GradeItem)
+            .filter(GradeItem.course_id == course_id, GradeItem.is_deleted == False)
+            .all()
+        )
+        for old_item in old_items:
+            old_item.is_deleted = True
+            # 将该成绩项的所有学生成绩标记为删除
+            session.query(Grade).filter(Grade.grade_item_id == old_item.id).update({"is_deleted": True})
+
+        # 创建新的成绩项
+        new_items = []
+        for item_data in items:
+            gi = GradeItem(
+                course_id=course_id,
+                item_name=item_data.get("item_name"),
+                weight=float(item_data.get("weight")),
+                description=item_data.get("description"),
+                is_deleted=False,
+            )
+            session.add(gi)
+            new_items.append(gi)
+
+        session.commit()
+        
+        for gi in new_items:
+            session.refresh(gi)
+
+        return {
+            "message": "成绩项已更新，旧成绩已作废",
+            "items": [
+                {
+                    "id": gi.id,
+                    "item_name": gi.item_name,
+                    "weight": float(gi.weight),
+                    "description": gi.description,
+                }
+                for gi in new_items
+            ],
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/courses/{course_id}/grades")
+def list_course_grades(
+    course_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """获取课程所有学生的所有成绩项成绩"""
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以查看成绩")
+
+    session = SessionLocal()
+    try:
+        course = session.query(Course).filter(Course.id == course_id, Course.is_deleted == 0).first()
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以查看本课程成绩")
+
+        # 获取成绩项
+        grade_items = (
+            session.query(GradeItem)
+            .filter(GradeItem.course_id == course_id, GradeItem.is_deleted == False)
+            .all()
+        )
+
+        # 获取选课学生
+        enrollments = (
+            session.query(Enrollment)
+            .options(joinedload(Enrollment.student))
+            .filter(Enrollment.course_id == course_id, Enrollment.is_deleted == False)
+            .all()
+        )
+
+        # 构建成绩数据结构
+        result = {
+            "grade_items": [
+                {
+                    "id": item.id,
+                    "item_name": item.item_name,
+                    "weight": float(item.weight),
+                }
+                for item in grade_items
+            ],
+            "students": [],
+        }
+
+        for enrollment in enrollments:
+            student_data = {
+                "enrollment_id": enrollment.id,
+                "student_id": enrollment.student.student_id_number if enrollment.student else None,
+                "student_name": enrollment.student.full_name if enrollment.student else None,
+                "grades": {},
+            }
+
+            # 获取该学生的所有成绩
+            grades = (
+                session.query(Grade)
+                .filter(
+                    Grade.enrollment_id == enrollment.id,
+                    Grade.is_deleted == False,
+                )
+                .all()
+            )
+
+            for grade in grades:
+                student_data["grades"][grade.grade_item_id] = {
+                    "grade_id": grade.id,
+                    "score": float(grade.score) if grade.score is not None else None,
+                    "status": grade.status,
+                }
+
+            # 为没有成绩记录的成绩项创建空记录
+            for item in grade_items:
+                if item.id not in student_data["grades"]:
+                    student_data["grades"][item.id] = {
+                        "grade_id": None,
+                        "score": None,
+                        "status": "pending",
+                    }
+
+            result["students"].append(student_data)
+
+        return result
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/enrollments/{enrollment_id}/grades")
+def create_or_update_student_grade(
+    enrollment_id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """为学生创建或更新某个成绩项的成绩"""
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以录入成绩")
+
+    session = SessionLocal()
+    try:
+        enrollment = session.query(Enrollment).get(enrollment_id)
+        if not enrollment or enrollment.is_deleted:
+            raise HTTPException(status_code=404, detail="选课记录不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == enrollment.course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以录入本课程成绩")
+
+        grade_item_id = payload.get("grade_item_id")
+        score = payload.get("score")
+
+        if grade_item_id is None:
+            raise HTTPException(status_code=400, detail="grade_item_id 为必填字段")
+
+        # 检查成绩项是否存在
+        grade_item = session.query(GradeItem).get(grade_item_id)
+        if not grade_item or grade_item.is_deleted:
+            raise HTTPException(status_code=404, detail="成绩项不存在")
+
+        if grade_item.course_id != enrollment.course_id:
+            raise HTTPException(status_code=400, detail="成绩项不属于该课程")
+
+        # 查找是否已有成绩记录
+        existing_grade = (
+            session.query(Grade)
+            .filter(
+                Grade.enrollment_id == enrollment_id,
+                Grade.grade_item_id == grade_item_id,
+                Grade.is_deleted == False,
+            )
+            .first()
+        )
+
+        if score is None or score == "":
+            score_val = None
+        else:
+            try:
+                score_val = float(score)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="score 必须为数字")
+
+        if existing_grade:
+            # 更新现有成绩
+            existing_grade.score = score_val
+            existing_grade.status = "graded" if score_val is not None else "pending"
+            existing_grade.graded_at = datetime.utcnow()
+            existing_grade.grader_id = current_user.id
+            session.commit()
+            session.refresh(existing_grade)
+
+            return {
+                "id": existing_grade.id,
+                "enrollment_id": existing_grade.enrollment_id,
+                "grade_item_id": existing_grade.grade_item_id,
+                "score": float(existing_grade.score) if existing_grade.score is not None else None,
+                "status": existing_grade.status,
+            }
+        else:
+            # 创建新成绩记录
+            new_grade = Grade(
+                enrollment_id=enrollment_id,
+                grade_item_id=grade_item_id,
+                score=score_val,
+                status="graded" if score_val is not None else "pending",
+                graded_at=datetime.utcnow() if score_val is not None else None,
+                grader_id=current_user.id if score_val is not None else None,
+                is_deleted=False,
+            )
+            session.add(new_grade)
+            session.commit()
+            session.refresh(new_grade)
+
+            return {
+                "id": new_grade.id,
+                "enrollment_id": new_grade.enrollment_id,
+                "grade_item_id": new_grade.grade_item_id,
+                "score": float(new_grade.score) if new_grade.score is not None else None,
+                "status": new_grade.status,
+            }
+    finally:
+        session.close()
+
+
+@app.put("/api/v1/grades/{grade_id}")
+def update_grade(
+    grade_id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """录入或修改单个成绩。"""
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以录入成绩")
+
+    session = SessionLocal()
+    try:
+        grade = session.query(Grade).get(grade_id)
+        if not grade or grade.is_deleted:
+            raise HTTPException(status_code=404, detail="成绩记录不存在")
+
+        # 权限：成绩所属课程必须是当前教师授课
+        enrollment = grade.enrollment
+        if not enrollment or enrollment.is_deleted:
+            raise HTTPException(status_code=404, detail="选课记录不存在")
+
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == enrollment.course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以录入本课程成绩")
+
+        if "score" not in payload:
+            raise HTTPException(status_code=400, detail="score 为必填字段")
+
+        try:
+            score_val = float(payload["score"])
+        except ValueError:
+            raise HTTPException(status_code=400, detail="score 必须为数字")
+
+        grade.score = score_val
+        grade.status = "graded"
+        grade.graded_at = datetime.utcnow()
+        grade.grader_id = current_user.id
+        session.commit()
+        session.refresh(grade)
+
+        return {
+            "id": grade.id,
+            "enrollment_id": grade.enrollment_id,
+            "grade_item_id": grade.grade_item_id,
+            "score": float(grade.score) if grade.score is not None else None,
+            "status": grade.status,
+        }
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/grade-items/{item_id}/grades/batch-upload")
+async def batch_upload_grades(
+    item_id: int,
+    file: UploadFile = File(...),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """批量导入某个成绩项的成绩（CSV，包含 student_id_number, score 列）。"""
+
+    if current_user.role != "teacher" or current_user.teacher_profile_id is None:
+        raise HTTPException(status_code=403, detail="仅教师可以批量导入成绩")
+
+    raw = await file.read()
+    try:
+        content = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="文件编码必须为 UTF-8")
+
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    if not lines:
+        raise HTTPException(status_code=400, detail="上传文件内容为空")
+
+    headers = [h.strip() for h in lines[0].split(",")]
+    required = ["student_id_number", "score"]
+    if not all(col in headers for col in required):
+        raise HTTPException(
+            status_code=400,
+            detail=f"文件缺少必要列: {', '.join(required)}",
+        )
+
+    idx = {name: headers.index(name) for name in headers}
+
+    session = SessionLocal()
+    summary = {"total": 0, "updated": 0, "failed": 0}
+    details: List[Dict[str, Any]] = []
+    try:
+        grade_item = (
+            session.query(GradeItem)
+            .filter(GradeItem.id == item_id, GradeItem.is_deleted == False)
+            .first()
+        )
+        if not grade_item:
+            raise HTTPException(status_code=404, detail="成绩项不存在")
+
+        # 权限：必须是该课程授课教师
+        ta = (
+            session.query(TeachingAssignment)
+            .filter(
+                TeachingAssignment.course_id == grade_item.course_id,
+                TeachingAssignment.teacher_id == current_user.teacher_profile_id,
+                TeachingAssignment.is_deleted == 0,
+            )
+            .first()
+        )
+        if not ta:
+            raise HTTPException(status_code=403, detail="仅授课教师可以导入本课程成绩")
+
+        for line in lines[1:]:
+            if not line.strip():
+                continue
+            cols = [c.strip() for c in line.split(",")]
+            if len(cols) < len(headers):
+                continue
+
+            student_id_number = cols[idx["student_id_number"]]
+            score_raw = cols[idx["score"]]
+            summary["total"] += 1
+
+            if not student_id_number or not score_raw:
+                summary["failed"] += 1
+                details.append(
+                    {
+                        "student_id_number": student_id_number or "",
+                        "status": "failed",
+                        "message": "必填字段缺失",
+                    }
+                )
+                continue
+
+            try:
+                score_val = float(score_raw)
+            except ValueError:
+                summary["failed"] += 1
+                details.append(
+                    {
+                        "student_id_number": student_id_number,
+                        "status": "failed",
+                        "message": "成绩不是有效数字",
+                    }
+                )
+                continue
+
+            student = (
+                session.query(StudentProfile)
+                .filter(StudentProfile.student_id_number == student_id_number)
+                .first()
+            )
+            if not student:
+                summary["failed"] += 1
+                details.append(
+                    {
+                        "student_id_number": student_id_number,
+                        "status": "failed",
+                        "message": "学生不存在",
+                    }
+                )
+                continue
+
+            enrollment = (
+                session.query(Enrollment)
+                .filter(
+                    Enrollment.student_id == student.id,
+                    Enrollment.course_id == grade_item.course_id,
+                    Enrollment.is_deleted == False,
+                )
+                .first()
+            )
+            if not enrollment:
+                summary["failed"] += 1
+                details.append(
+                    {
+                        "student_id_number": student_id_number,
+                        "status": "failed",
+                        "message": "学生未选修该课程",
+                    }
+                )
+                continue
+
+            grade = (
+                session.query(Grade)
+                .filter(
+                    Grade.enrollment_id == enrollment.id,
+                    Grade.grade_item_id == item_id,
+                    Grade.is_deleted == False,
+                )
+                .first()
+            )
+            if not grade:
+                grade = Grade(
+                    enrollment_id=enrollment.id,
+                    grade_item_id=item_id,
+                    is_deleted=False,
+                )
+                session.add(grade)
+
+            grade.score = score_val
+            grade.status = "graded"
+            grade.graded_at = datetime.utcnow()
+            grade.grader_id = current_user.id
+            summary["updated"] += 1
+
+        session.commit()
+    finally:
+        session.close()
+
+    return {"summary": summary, "details": details}
+
+
+# =====================
+# 教学管理端（接入数据库实现）
+# =====================
+
+
+def _require_edu_admin(current_user: CurrentUser):
+    if current_user.role != "edu_admin":
+        raise HTTPException(status_code=403, detail="仅教学管理员可以执行此操作")
+
+
+class EduAdminDashboardStats(BaseModel):
+    students: int
+    teachers: int
+    classes: int
+    courses: int
+
+
+@app.get("/api/v1/edu-admin/dashboard-stats", response_model=EduAdminDashboardStats)
+def get_edu_admin_dashboard_stats(current_user: CurrentUser = Depends(get_current_user)):
+    """教学管理员首页仪表板统计数据。
+
+    - 学生总数：未删除的学生档案数量
+    - 教师总数：未删除的教师档案数量
+    - 班级总数：未删除的班级数量
+    - 课程总数：未删除的课程数量
+    """
+
+    _require_edu_admin(current_user)
+
+    session = SessionLocal()
+    try:
+        students = (
+            session.query(StudentProfile)
+            .join(User, StudentProfile.user_id == User.id)
+            .filter(User.is_deleted == False)
+            .count()
+        )
+
+        teachers = (
+            session.query(TeacherProfile)
+            .join(User, TeacherProfile.user_id == User.id)
+            .filter(User.is_deleted == False)
+            .count()
+        )
+
+        classes = session.query(Class).filter(Class.is_deleted == False).count()
+        courses = session.query(Course).filter(Course.is_deleted == 0).count()
+
+        return EduAdminDashboardStats(
+            students=students,
+            teachers=teachers,
+            classes=classes,
+            courses=courses,
+        )
+    finally:
+        session.close()
+
+
+# 班级 CRUD
+@app.post("/api/v1/classes", status_code=status.HTTP_201_CREATED)
+def create_class(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+
+    class_name = payload.get("class_name")
+    if not class_name:
+        raise HTTPException(status_code=400, detail="class_name 为必填字段")
+
+    session = SessionLocal()
+    try:
+        existing = (
+            session.query(Class)
+            .filter(Class.class_name == class_name, Class.is_deleted == False)
+            .first()
+        )
+        if existing:
+            raise HTTPException(status_code=400, detail="班级名称已存在")
+
+        cls = Class(
+            class_name=class_name,
+            department=payload.get("department"),
+            enrollment_year=payload.get("enrollment_year"),
+            is_deleted=False,
+        )
+        session.add(cls)
+        session.commit()
+        session.refresh(cls)
+        return {
+            "id": cls.id,
+            "class_name": cls.class_name,
+            "department": cls.department,
+            "enrollment_year": cls.enrollment_year,
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/classes")
+def list_classes(
+    page: int = 1,
+    pageSize: int = 10,
+    class_name: Optional[str] = None,
+    department: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """班级列表，支持按名称模糊搜索和院系筛选，供教学管理端使用。"""
+
+    _require_edu_admin(current_user)
+
+    session = SessionLocal()
+    try:
+        q = session.query(Class).filter(Class.is_deleted == False)
+
+        if class_name:
+            q = q.filter(Class.class_name.like(f"%{class_name}%"))
+        if department:
+            q = q.filter(Class.department == department)
+
+        total_items = q.count()
+        total_pages = math.ceil(total_items / pageSize) if pageSize else 1
+        items = (
+            q.order_by(Class.id)
+            .offset((page - 1) * pageSize)
+            .limit(pageSize)
+            .all()
+        )
+        data = [
+            {
+                "id": c.id,
+                "class_name": c.class_name,
+                "department": c.department,
+                "enrollment_year": c.enrollment_year,
+            }
+            for c in items
+        ]
+        return {
+            "pagination": {
+                "totalItems": total_items,
+                "totalPages": total_pages,
+                "currentPage": page,
+                "pageSize": pageSize,
+            },
+            "items": data,
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/classes/{id}")
+def get_class(id: int, current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        cls = session.query(Class).get(id)
+        if not cls or cls.is_deleted:
+            raise HTTPException(status_code=404, detail="班级不存在")
+        return {
+            "id": cls.id,
+            "class_name": cls.class_name,
+            "department": cls.department,
+            "enrollment_year": cls.enrollment_year,
+        }
+    finally:
+        session.close()
+
+
+@app.put("/api/v1/classes/{id}")
+def update_class(
+    id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        cls = session.query(Class).get(id)
+        if not cls or cls.is_deleted:
+            raise HTTPException(status_code=404, detail="班级不存在")
+
+        if "class_name" in payload and payload["class_name"] != cls.class_name:
+            existing = (
+                session.query(Class)
+                .filter(
+                    Class.class_name == payload["class_name"],
+                    Class.is_deleted == False,
+                )
+                .first()
+            )
+            if existing:
+                raise HTTPException(status_code=400, detail="班级名称已存在")
+            cls.class_name = payload["class_name"]
+
+        if "department" in payload:
+            cls.department = payload["department"]
+        if "enrollment_year" in payload:
+            cls.enrollment_year = payload["enrollment_year"]
+
+        session.commit()
+        session.refresh(cls)
+        return {
+            "id": cls.id,
+            "class_name": cls.class_name,
+            "department": cls.department,
+            "enrollment_year": cls.enrollment_year,
+        }
+    finally:
+        session.close()
+
+
+@app.delete("/api/v1/classes/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_class(id: int, current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        cls = session.query(Class).get(id)
+        if not cls or cls.is_deleted:
+            return
+        cls.is_deleted = True
+        session.commit()
+        return
+    finally:
+        session.close()
+
+
+# 学生 CRUD
+@app.post("/api/v1/students", status_code=status.HTTP_201_CREATED)
+def create_student(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+
+    username = payload.get("username")
+    full_name = payload.get("full_name")
+    email = payload.get("email")
+    class_id = payload.get("class_id")
+    if not all([username, full_name, email, class_id]):
+        raise HTTPException(status_code=400, detail="username, full_name, email, class_id 为必填字段")
+
+    session = SessionLocal()
+    try:
+        if (
+            session.query(User)
+            .filter(User.username == username, User.is_deleted == False)
+            .first()
+        ):
+            raise HTTPException(status_code=400, detail="用户名已存在")
+
+        if (
+            session.query(User)
+            .filter(User.email == email, User.is_deleted == False)
+            .first()
+        ):
+            raise HTTPException(status_code=400, detail="邮箱已存在")
+
+        cls = session.query(Class).get(class_id)
+        if not cls or cls.is_deleted:
+            raise HTTPException(status_code=400, detail="班级不存在")
+
+        user = User(
+            username=username,
+            password_hash=hash_password("InitialPassword123"),
+            role="student",
+            email=email,
+            status="active",
+            is_deleted=False,
+        )
+        session.add(user)
+        session.flush()
+
+        student = StudentProfile(
+            user_id=user.id,
+            student_id_number=username,
+            full_name=full_name,
+            class_id=class_id,
+        )
+        session.add(student)
+        session.commit()
+        session.refresh(student)
+
+        return {
+            "id": student.id,
+            "username": username,
+            "full_name": full_name,
+            "email": email,
+            "class_id": class_id,
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/students")
+def list_students(
+    page: int = 1,
+    pageSize: int = 10,
+    search: Optional[str] = None,
+    class_id: Optional[int] = None,
+    status: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """学生列表，支持按学号/姓名搜索、按班级和账户状态筛选。"""
+
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        q = (
+            session.query(StudentProfile, User, Class)
+            .join(User, StudentProfile.user_id == User.id)
+            .outerjoin(Class, StudentProfile.class_id == Class.id)
+            .filter(User.is_deleted == False)
+        )
+
+        if search:
+            pattern = f"%{search}%"
+            q = q.filter(
+                or_(
+                    User.username.like(pattern),
+                    StudentProfile.full_name.like(pattern),
+                )
+            )
+        if class_id is not None:
+            q = q.filter(StudentProfile.class_id == class_id)
+        if status in {"active", "locked"}:
+            q = q.filter(User.status == status)
+
+        total_items = q.count()
+        total_pages = math.ceil(total_items / pageSize) if pageSize else 1
+        rows = (
+            q.order_by(StudentProfile.id)
+            .offset((page - 1) * pageSize)
+            .limit(pageSize)
+            .all()
+        )
+
+        items = [
+            {
+                "id": sp.id,
+                "username": u.username,
+                "full_name": sp.full_name,
+                "email": u.email,
+                "class_id": sp.class_id,
+                "class_name": cls.class_name if cls else None,
+                "status": u.status,
+            }
+            for sp, u, cls in rows
+        ]
+        return {
+            "pagination": {
+                "totalItems": total_items,
+                "totalPages": total_pages,
+                "currentPage": page,
+                "pageSize": pageSize,
+            },
+            "items": items,
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/students/{id}")
+def get_student(id: int, current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        sp = session.query(StudentProfile).get(id)
+        if not sp:
+            raise HTTPException(status_code=404, detail="学生不存在")
+        user = session.query(User).get(sp.user_id)
+        if not user or user.is_deleted:
+            raise HTTPException(status_code=404, detail="关联用户不存在")
+        return {
+            "id": sp.id,
+            "username": user.username,
+            "full_name": sp.full_name,
+            "email": user.email,
+            "class_id": sp.class_id,
+        }
+    finally:
+        session.close()
+
+
+@app.put("/api/v1/students/{id}")
+def update_student(
+    id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        sp = session.query(StudentProfile).get(id)
+        if not sp:
+            raise HTTPException(status_code=404, detail="学生不存在")
+        user = session.query(User).get(sp.user_id)
+        if not user or user.is_deleted:
+            raise HTTPException(status_code=404, detail="关联用户不存在")
+
+        if "username" in payload and payload["username"] != user.username:
+            if (
+                session.query(User)
+                .filter(User.username == payload["username"], User.is_deleted == False)
+                .first()
+            ):
+                raise HTTPException(status_code=400, detail="用户名已存在")
+            user.username = payload["username"]
+            sp.student_id_number = payload["username"]
+
+        if "email" in payload and payload["email"] != user.email:
+            if (
+                session.query(User)
+                .filter(User.email == payload["email"], User.is_deleted == False)
+                .first()
+            ):
+                raise HTTPException(status_code=400, detail="邮箱已存在")
+            user.email = payload["email"]
+
+        if "full_name" in payload:
+            sp.full_name = payload["full_name"]
+        if "class_id" in payload:
+            cls = session.query(Class).get(payload["class_id"])
+            if not cls or cls.is_deleted:
+                raise HTTPException(status_code=400, detail="班级不存在")
+            sp.class_id = payload["class_id"]
+
+        # 允许教学管理员直接切换学生用户状态（active/locked）
+        if "status" in payload:
+            new_status = payload["status"]
+            if new_status not in {"active", "locked"}:
+                raise HTTPException(status_code=400, detail="无效的账户状态")
+            user.status = new_status
+
+        session.commit()
+        return {
+            "id": sp.id,
+            "username": user.username,
+            "full_name": sp.full_name,
+            "email": user.email,
+            "class_id": sp.class_id,
+        }
+    finally:
+        session.close()
+
+
+@app.delete("/api/v1/students/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_student(id: int, current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        sp = session.query(StudentProfile).get(id)
+        if not sp:
+            return
+        user = session.query(User).get(sp.user_id)
+        if user and not user.is_deleted:
+            user.is_deleted = True
+        session.commit()
+        return
+    finally:
+        session.close()
+
+
+"""教师 CRUD（教学管理端）"""
+
+
+@app.post("/api/v1/teachers", status_code=status.HTTP_201_CREATED)
+def create_teacher(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+
+    # 前端表单可能传 teacher_id_number 字段，这里兼容映射到 username
+    username = payload.get("username") or payload.get("teacher_id_number")
+    full_name = payload.get("full_name")
+    email = payload.get("email")
+    title = payload.get("title")
+    if not all([username, full_name, email]):
+        raise HTTPException(status_code=400, detail="username/teacher_id_number, full_name, email 为必填字段")
+
+    session = SessionLocal()
+    try:
+        if (
+            session.query(User)
+            .filter(User.username == username, User.is_deleted == False)
+            .first()
+        ):
+            raise HTTPException(status_code=400, detail="用户名已存在")
+        if (
+            session.query(User)
+            .filter(User.email == email, User.is_deleted == False)
+            .first()
+        ):
+            raise HTTPException(status_code=400, detail="邮箱已存在")
+
+        user = User(
+            username=username,
+            password_hash=hash_password("InitialPassword123"),
+            role="teacher",
+            email=email,
+            status="active",
+            is_deleted=False,
+        )
+        session.add(user)
+        session.flush()
+
+        tp = TeacherProfile(
+            user_id=user.id,
+            teacher_id_number=username,
+            full_name=full_name,
+            title=title,
+        )
+        session.add(tp)
+        session.commit()
+        session.refresh(tp)
+
+        return {
+            "id": tp.id,
+            "teacher_id_number": tp.teacher_id_number,
+            "full_name": tp.full_name,
+            "title": tp.title,
+            "email": email,
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/teachers")
+def list_teachers(
+    page: int = 1,
+    pageSize: int = 10,
+    search: Optional[str] = None,
+    title: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """教师列表，支持按工号/姓名搜索与按职称筛选。"""
+
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        q = (
+            session.query(TeacherProfile, User)
+            .join(User, TeacherProfile.user_id == User.id)
+            .filter(User.is_deleted == False)
+        )
+
+        if search:
+            pattern = f"%{search}%"
+            q = q.filter(
+                or_(
+                    User.username.like(pattern),
+                    TeacherProfile.full_name.like(pattern),
+                )
+            )
+        if title:
+            q = q.filter(TeacherProfile.title == title)
+
+        total_items = q.count()
+        total_pages = math.ceil(total_items / pageSize) if pageSize else 1
+        rows = (
+            q.order_by(TeacherProfile.id)
+            .offset((page - 1) * pageSize)
+            .limit(pageSize)
+            .all()
+        )
+
+        items = [
+            {
+                "id": tp.id,
+                "teacher_id_number": u.username,
+                "full_name": tp.full_name,
+                "title": tp.title,
+                "email": u.email,
+            }
+            for tp, u in rows
+        ]
+        return {
+            "pagination": {
+                "totalItems": total_items,
+                "totalPages": total_pages,
+                "currentPage": page,
+                "pageSize": pageSize,
+            },
+            "items": items,
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/teachers/{id}")
+def get_teacher(id: int, current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        tp = session.query(TeacherProfile).get(id)
+        if not tp:
+            raise HTTPException(status_code=404, detail="教师不存在")
+        user = session.query(User).get(tp.user_id)
+        if not user or user.is_deleted:
+            raise HTTPException(status_code=404, detail="关联用户不存在")
+        return {"id": tp.id, "full_name": tp.full_name, "title": tp.title}
+    finally:
+        session.close()
+
+
+@app.put("/api/v1/teachers/{id}")
+def update_teacher(
+    id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        tp = session.query(TeacherProfile).get(id)
+        if not tp:
+            raise HTTPException(status_code=404, detail="教师不存在")
+        user = session.query(User).get(tp.user_id)
+        if not user or user.is_deleted:
+            raise HTTPException(status_code=404, detail="关联用户不存在")
+
+        if "username" in payload and payload["username"] != user.username:
+            if (
+                session.query(User)
+                .filter(User.username == payload["username"], User.is_deleted == False)
+                .first()
+            ):
+                raise HTTPException(status_code=400, detail="用户名已存在")
+            user.username = payload["username"]
+            tp.teacher_id_number = payload["username"]
+
+        if "email" in payload and payload["email"] != user.email:
+            if (
+                session.query(User)
+                .filter(User.email == payload["email"], User.is_deleted == False)
+                .first()
+            ):
+                raise HTTPException(status_code=400, detail="邮箱已存在")
+            user.email = payload["email"]
+
+        if "full_name" in payload:
+            tp.full_name = payload["full_name"]
+        if "title" in payload:
+            tp.title = payload["title"]
+
+        session.commit()
+        return {"id": tp.id, "full_name": tp.full_name, "title": tp.title}
+    finally:
+        session.close()
+
+
+@app.delete("/api/v1/teachers/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_teacher(id: int, current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        tp = session.query(TeacherProfile).get(id)
+        if not tp:
+            return
+        user = session.query(User).get(tp.user_id)
+        if user and not user.is_deleted:
+            user.is_deleted = True
+        session.commit()
+        return
+    finally:
+        session.close()
+
+
+# 课程 CRUD（创建/更新/删除）
+@app.post("/api/v1/courses", status_code=status.HTTP_201_CREATED)
+def admin_create_course(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+
+    course_code = payload.get("course_code")
+    course_name = payload.get("course_name")
+    credits = payload.get("credits")
+    if not all([course_code, course_name, credits is not None]):
+        raise HTTPException(status_code=400, detail="course_code, course_name, credits 为必填字段")
+
+    grade_items = payload.get("grade_items") or []
+    if not isinstance(grade_items, list) or not grade_items:
+        raise HTTPException(status_code=400, detail="grade_items（成绩组成项）为必填且必须为非空数组")
+
+    try:
+        parsed_items = []
+        total_weight = 0.0
+        for item in grade_items:
+            name = (item.get("item_name") or "").strip()
+            weight = item.get("weight")
+            if not name or weight is None:
+                raise HTTPException(status_code=400, detail="每个成绩组成项都必须包含 item_name 和 weight")
+            try:
+                w_val = float(weight)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="成绩组成项的 weight 必须为数字")
+            parsed_items.append({"item_name": name, "weight": w_val, "description": (item.get("description") or "").strip() or None})
+            total_weight += w_val
+
+        if abs(total_weight - 1.0) > 1e-6:
+            raise HTTPException(status_code=400, detail="所有成绩组成项的权重之和必须等于 1")
+    except HTTPException:
+        # 向上抛出业务校验错误
+        raise
+
+    session = SessionLocal()
+    try:
+        if (
+            session.query(Course)
+            .filter(Course.course_code == course_code, Course.is_deleted == 0)
+            .first()
+        ):
+            raise HTTPException(status_code=400, detail="课程编号已存在")
+
+        c = Course(
+            course_code=course_code,
+            course_name=course_name,
+            credits=credits,
+            description=payload.get("description"),
+            department=payload.get("department"),
+            prerequisites=payload.get("prerequisites"),
+            is_deleted=0,
+            grade_approved=False,
+        )
+        session.add(c)
+        session.flush()
+
+        # 创建课程的成绩组成项（不绑定具体作业，仅作为总评组成）
+        for item in parsed_items:
+            gi = GradeItem(
+                course_id=c.id,
+                item_name=item["item_name"],
+                weight=item["weight"],
+                description=item["description"],
+                is_deleted=False,
+            )
+            session.add(gi)
+
+        session.commit()
+        session.refresh(c)
+        return {
+            "id": c.id,
+            "course_code": c.course_code,
+            "course_name": c.course_name,
+            "credits": float(c.credits),
+            "description": c.description,
+            "department": c.department,
+        }
+    finally:
+        session.close()
+
+
+@app.put("/api/v1/courses/{id}")
+def admin_update_course(
+    id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        c = session.query(Course).get(id)
+        if not c or c.is_deleted:
+            raise HTTPException(status_code=404, detail="课程不存在")
+
+        if "course_code" in payload and payload["course_code"] != c.course_code:
+            if (
+                session.query(Course)
+                .filter(Course.course_code == payload["course_code"], Course.is_deleted == 0)
+                .first()
+            ):
+                raise HTTPException(status_code=400, detail="课程编号已存在")
+            c.course_code = payload["course_code"]
+
+        for key in ["course_name", "credits", "description", "department", "prerequisites"]:
+            if key in payload:
+                setattr(c, key, payload[key])
+
+        session.commit()
+        session.refresh(c)
+        return {
+            "id": c.id,
+            "course_code": c.course_code,
+            "course_name": c.course_name,
+            "credits": float(c.credits),
+            "description": c.description,
+            "department": c.department,
+        }
+    finally:
+        session.close()
+
+
+@app.delete("/api/v1/courses/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def admin_delete_course(id: int, current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        c = session.query(Course).get(id)
+        if not c or c.is_deleted:
+            return
+        c.is_deleted = 1
+        session.commit()
+        return
+    finally:
+        session.close()
+
+
+# 教室 CRUD
+@app.post("/api/v1/classrooms", status_code=status.HTTP_201_CREATED)
+def create_classroom(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+
+    name = payload.get("name")
+    if not name:
+        raise HTTPException(status_code=400, detail="name 为必填字段")
+
+    session = SessionLocal()
+    try:
+        if session.query(Classroom).filter(Classroom.name == name).first():
+            raise HTTPException(status_code=400, detail="教室名称已存在")
+
+        room = Classroom(
+            name=name,
+            location=payload.get("location"),
+            capacity=payload.get("capacity"),
+        )
+        session.add(room)
+        session.commit()
+        session.refresh(room)
+        return {
+            "id": room.id,
+            "name": room.name,
+            "location": room.location,
+            "capacity": room.capacity,
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/classrooms")
+def list_classrooms(
+    page: int = 1,
+    pageSize: int = 10,
+    search: Optional[str] = None,
+    capacity: Optional[int] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """教室列表，支持按名称/位置搜索与容量区间筛选。"""
+
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        q = session.query(Classroom)
+
+        if search:
+            pattern = f"%{search}%"
+            q = q.filter(
+                or_(
+                    Classroom.name.like(pattern),
+                    Classroom.location.like(pattern),
+                )
+            )
+
+        # 前端下拉容量筛选：50=>50人以下，100=>50-100人，200=>100人以上
+        if capacity is not None:
+            if capacity == 50:
+                q = q.filter(Classroom.capacity < 50)
+            elif capacity == 100:
+                q = q.filter(and_(Classroom.capacity >= 50, Classroom.capacity <= 100))
+            elif capacity == 200:
+                q = q.filter(Classroom.capacity > 100)
+
+        total_items = q.count()
+        total_pages = math.ceil(total_items / pageSize) if pageSize else 1
+        rooms = (
+            q.order_by(Classroom.id)
+            .offset((page - 1) * pageSize)
+            .limit(pageSize)
+            .all()
+        )
+
+        items = [
+            {
+                "id": r.id,
+                "name": r.name,
+                "location": r.location,
+                "capacity": r.capacity,
+            }
+            for r in rooms
+        ]
+        return {
+            "pagination": {
+                "totalItems": total_items,
+                "totalPages": total_pages,
+                "currentPage": page,
+                "pageSize": pageSize,
+            },
+            "items": items,
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/classrooms/{id}")
+def get_classroom(id: int, current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        room = session.query(Classroom).get(id)
+        if not room:
+            raise HTTPException(status_code=404, detail="教室不存在")
+        return {
+            "id": room.id,
+            "name": room.name,
+            "location": room.location,
+            "capacity": room.capacity,
+        }
+    finally:
+        session.close()
+
+
+@app.put("/api/v1/classrooms/{id}")
+def update_classroom(
+    id: int,
+    payload: Dict[str, Any],
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        room = session.query(Classroom).get(id)
+        if not room:
+            raise HTTPException(status_code=404, detail="教室不存在")
+
+        if "name" in payload and payload["name"] != room.name:
+            if session.query(Classroom).filter(Classroom.name == payload["name"]).first():
+                raise HTTPException(status_code=400, detail="教室名称已存在")
+            room.name = payload["name"]
+
+        if "location" in payload:
+            room.location = payload["location"]
+        if "capacity" in payload:
+            room.capacity = payload["capacity"]
+
+        session.commit()
+        return {
+            "id": room.id,
+            "name": room.name,
+            "location": room.location,
+            "capacity": room.capacity,
+        }
+    finally:
+        session.close()
+
+
+@app.delete("/api/v1/classrooms/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_classroom(id: int, current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        room = session.query(Classroom).get(id)
+        if not room:
+            return
+        session.delete(room)
+        session.commit()
+        return
+    finally:
+        session.close()
+
+
+"""学期教学安排与课程表相关接口"""
+
+
+# 学期教学安排
+@app.post("/api/v1/teaching-assignments", status_code=status.HTTP_201_CREATED)
+def create_teaching_assignment(
+    payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)
+):
+    """创建单个授课任务：为某学期的课程分配教师。
+
+    对应文档中的“学期开课计划(创建课程,分配教师)”能力。
+    """
+
+    _require_edu_admin(current_user)
+
+    teacher_id = payload.get("teacher_id")
+    course_id = payload.get("course_id")
+    semester = payload.get("semester")
+    if not all([teacher_id, course_id, semester]):
+        raise HTTPException(status_code=400, detail="teacher_id, course_id, semester 为必填字段")
+
+    session = SessionLocal()
+    try:
+        tp = session.query(TeacherProfile).get(teacher_id)
+        if not tp:
+            raise HTTPException(status_code=400, detail="教师不存在")
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=400, detail="课程不存在")
+
+        ta = TeachingAssignment(
+            teacher_id=teacher_id,
+            course_id=course_id,
+            semester=semester,
+            is_deleted=0,
+        )
+        session.add(ta)
+        session.commit()
+        session.refresh(ta)
+        return {
+            "id": ta.id,
+            "teacher_id": ta.teacher_id,
+            "course_id": ta.course_id,
+            "semester": ta.semester,
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/teaching-assignments")
+def list_teaching_assignments(
+    semester: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """按学期列出授课任务，用于教学管理员查看开课计划及前端课表管理。
+
+    返回课程和教师的基础信息，便于前端直接展示。
+    """
+
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        q = session.query(TeachingAssignment).options(
+            joinedload(TeachingAssignment.course),
+            joinedload(TeachingAssignment.teacher),
+        ).filter(TeachingAssignment.is_deleted == 0)
+
+        if semester:
+            q = q.filter(TeachingAssignment.semester == semester)
+
+        items = []
+        for ta in q.order_by(TeachingAssignment.id).all():
+            course = ta.course
+            teacher = ta.teacher
+            items.append(
+                {
+                    "id": ta.id,
+                    "semester": ta.semester,
+                    "course": {
+                        "id": course.id if course else None,
+                        "course_name": course.course_name if course else None,
+                    },
+                    "teacher": {
+                        "id": teacher.id if teacher else None,
+                        "full_name": teacher.full_name if teacher else None,
+                    }
+                    if teacher
+                    else None,
+                }
+            )
+
+        return items
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/course-schedules", status_code=status.HTTP_201_CREATED)
+def create_course_schedule(
+    payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)
+):
+    """创建单条课程排课记录，对应“教室安排管理”。"""
+
+    _require_edu_admin(current_user)
+
+    teaching_id = payload.get("teaching_id")
+    classroom_id = payload.get("classroom_id")
+    day_of_week = payload.get("day_of_week")
+    start_time_str = payload.get("start_time")
+    end_time_str = payload.get("end_time")
+    if not all([teaching_id, classroom_id, day_of_week, start_time_str, end_time_str]):
+        raise HTTPException(status_code=400, detail="teaching_id, classroom_id, day_of_week, start_time, end_time 为必填字段")
+
+    try:
+        start_t = datetime.strptime(start_time_str, "%H:%M:%S").time()
+        end_t = datetime.strptime(end_time_str, "%H:%M:%S").time()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="时间格式应为 HH:MM:SS")
+
+    if start_t >= end_t:
+        raise HTTPException(status_code=400, detail="开始时间必须早于结束时间")
+
+    session = SessionLocal()
+    try:
+        ta = session.query(TeachingAssignment).get(teaching_id)
+        if not ta or ta.is_deleted:
+            raise HTTPException(status_code=400, detail="授课任务不存在")
+        room = session.query(Classroom).get(classroom_id)
+        if not room:
+            raise HTTPException(status_code=400, detail="教室不存在")
+
+        # 教室时间冲突检测
+        existing = (
+            session.query(CourseSchedule)
+            .filter(
+                CourseSchedule.classroom_id == classroom_id,
+                CourseSchedule.day_of_week == day_of_week,
+            )
+            .all()
+        )
+        for cs in existing:
+            if start_t < cs.end_time and end_t > cs.start_time:
+                raise HTTPException(
+                    status_code=409,
+                    detail="该教室在该时间段已有排课",
+                )
+
+        schedule = CourseSchedule(
+            teaching_id=teaching_id,
+            classroom_id=classroom_id,
+            day_of_week=day_of_week,
+            start_time=start_t,
+            end_time=end_t,
+        )
+        session.add(schedule)
+        session.commit()
+        session.refresh(schedule)
+        return {
+            "id": schedule.id,
+            "teaching_id": schedule.teaching_id,
+            "classroom_id": schedule.classroom_id,
+            "day_of_week": schedule.day_of_week,
+            "start_time": schedule.start_time.strftime("%H:%M:%S"),
+            "end_time": schedule.end_time.strftime("%H:%M:%S"),
+        }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/course-schedules")
+def list_course_schedules(
+    semester: Optional[str] = None,
+    teacher_id: Optional[int] = None,
+    class_id: Optional[int] = None,
+    classroom_id: Optional[int] = None,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """按教师 / 班级 / 教室查询课程表，用于前端课表展示。
+
+    - semester: 学年学期，如 "2025-2026-1"
+    - teacher_id: 教师档案 ID（TeacherProfiles.id）
+    - class_id: 班级 ID（Classes.id），通过选课关系推导该班上哪些课
+    - classroom_id: 教室 ID（Classrooms.id）
+    """
+
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        q = (
+            session.query(CourseSchedule, TeachingAssignment, Course, TeacherProfile, Classroom)
+            .join(TeachingAssignment, CourseSchedule.teaching_id == TeachingAssignment.id)
+            .join(Course, TeachingAssignment.course_id == Course.id)
+            .join(TeacherProfile, TeachingAssignment.teacher_id == TeacherProfile.id)
+            .join(Classroom, CourseSchedule.classroom_id == Classroom.id)
+        )
+
+        if semester:
+            q = q.filter(TeachingAssignment.semester == semester)
+
+        if teacher_id is not None:
+            q = q.filter(TeachingAssignment.teacher_id == teacher_id)
+
+        if classroom_id is not None:
+            q = q.filter(CourseSchedule.classroom_id == classroom_id)
+
+        if class_id is not None:
+            # 通过选课记录+学生档案推导某个班级的课程安排
+            q = (
+                q.join(Enrollment, Enrollment.course_id == Course.id)
+                .join(StudentProfile, Enrollment.student_id == StudentProfile.id)
+                .filter(StudentProfile.class_id == class_id, Enrollment.is_deleted == False)
+            )
+
+        rows = q.distinct(CourseSchedule.id).all()
+
+        items = []
+        for cs, ta, course, teacher, room in rows:
+            items.append(
+                {
+                    "id": cs.id,
+                    "day_of_week": cs.day_of_week,
+                    "start_time": cs.start_time.strftime("%H:%M:%S"),
+                    "end_time": cs.end_time.strftime("%H:%M:%S"),
+                    "semester": ta.semester,
+                    "course": {
+                        "id": course.id,
+                        "course_name": course.course_name,
+                    },
+                    "teacher": {
+                        "id": teacher.id,
+                        "full_name": teacher.full_name,
+                    },
+                    "classroom": {
+                        "id": room.id,
+                        "name": room.name,
+                    },
+                }
+            )
+
+        return items
+    finally:
+        session.close()
+
+
+# 成绩审核与发布
+@app.get("/api/v1/grades/pending-review")
+def list_pending_review(current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        # 查找存在成绩记录的课程（不论是否已发布），用于审核列表
+        rows = (
+            session.query(Course)
+            .join(Enrollment, Enrollment.course_id == Course.id)
+            .join(Grade, Grade.enrollment_id == Enrollment.id)
+            .filter(Course.is_deleted == 0, Grade.is_deleted == False)
+            .distinct()
+            .all()
+        )
+
+        results = []
+        for course in rows:
+            course_id = course.id
+
+            # 成绩组成项与选课情况
+            grade_items = (
+                session.query(GradeItem)
+                .filter(GradeItem.course_id == course_id, GradeItem.is_deleted == False)
+                .all()
+            )
+            enrollments = (
+                session.query(Enrollment)
+                .filter(Enrollment.course_id == course_id, Enrollment.is_deleted == False)
+                .all()
+            )
+
+            expected_count = len(grade_items) * len(enrollments)
+            grades = (
+                session.query(Grade)
+                .join(Enrollment, Grade.enrollment_id == Enrollment.id)
+                .filter(
+                    Enrollment.course_id == course_id,
+                    Grade.grade_item_id.in_([gi.id for gi in grade_items]) if grade_items else True,
+                    Grade.is_deleted == False,
+                )
+                .all()
+            )
+            graded_count = sum(1 for g in grades if g.score is not None)
+
+            is_complete = expected_count > 0 and graded_count == expected_count
+
+            # 计算优秀率，仅用于预警展示
+            scores = [float(g.score) for g in grades if g.score is not None]
+            warnings = []
+            if scores:
+                total = len(scores)
+                excellent = sum(1 for s in scores if s >= 90)
+                rate = excellent / total
+                if rate >= 0.3:
+                    warnings.append(
+                        {
+                            "type": "HIGH_EXCELLENT_RATE",
+                            "message": f"优秀率 (90分以上) 达到 {rate * 100:.0f}%，超过预警阈值 30%。",
+                        }
+                    )
+
+            # 根据完成度与是否已审核决定状态
+            if not is_complete:
+                status = "not_ready"
+            else:
+                status = "approved" if course.grade_approved else "pending_review"
+
+            results.append(
+                {
+                    "course_id": course_id,
+                    "course_name": course.course_name,
+                    "course_code": course.course_code,
+                    "status": status,
+                    "warnings": warnings,
+                    "grade_stats": {
+                        "grade_items": len(grade_items),
+                        "students": len(enrollments),
+                        "graded_count": graded_count,
+                        "expected_count": expected_count,
+                        "completion_rate": (graded_count / expected_count) if expected_count else 0,
+                    },
+                }
+            )
+
+        return results
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/grades/publish")
+def publish_grades(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    _require_edu_admin(current_user)
+    course_ids = payload.get("course_ids") or []
+    if not isinstance(course_ids, list):
+        raise HTTPException(status_code=400, detail="course_ids 必须为数组")
+
+    session = SessionLocal()
+    try:
+        grades = (
+            session.query(Grade)
+            .join(Enrollment, Grade.enrollment_id == Enrollment.id)
+            .filter(Enrollment.course_id.in_(course_ids), Grade.is_deleted == False)
+            .all()
+        )
+        for g in grades:
+            g.status = "published"
+        session.commit()
+        return {"message": f"{len(course_ids)} 个课程的成绩已成功发布。"}
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/grades/publish-list")
+def list_publishable_courses(current_user: CurrentUser = Depends(get_current_user)):
+    """获取可在成绩发布页展示的课程列表。
+
+    只返回已通过教学管理端审核的课程（Course.grade_approved = True），
+    并根据成绩是否全部发布给出 `approved` 或 `published` 状态。
+    """
+
+    _require_edu_admin(current_user)
+    session = SessionLocal()
+    try:
+        courses = (
+            session.query(Course)
+            .filter(Course.is_deleted == 0, Course.grade_approved == True)
+            .all()
+        )
+
+        results = []
+        for course in courses:
+            course_id = course.id
+
+            # 查找该课程涉及的所有成绩记录
+            grades = (
+                session.query(Grade)
+                .join(Enrollment, Grade.enrollment_id == Enrollment.id)
+                .filter(Enrollment.course_id == course_id, Grade.is_deleted == False)
+                .all()
+            )
+
+            if not grades:
+                # 已审核但暂无成绩，视为未发布
+                status = "approved"
+            else:
+                # 若所有成绩均为 published，则状态为已发布
+                all_published = all(g.status == "published" for g in grades)
+                status = "published" if all_published else "approved"
+
+            results.append(
+                {
+                    "course_id": course_id,
+                    "course_code": course.course_code,
+                    "course_name": course.course_name,
+                    # 这里暂不区分学期，使用占位值或由前端按需展示
+                    "semester": "",
+                    "status": status,
+                    "reviewed_at": None,
+                    "reviewer": None,
+                }
+            )
+
+        return results
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/grades/approve")
+def approve_course_grades(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    """教学管理员审核通过单门课程的成绩。
+
+    只有当该课程所有学生的所有成绩组成项都已评分完成时，
+    才允许通过审核。审核通过会在课程上打上 `grade_approved`
+    标记，供后续成绩发布模块使用。
+    """
+
+    _require_edu_admin(current_user)
+
+    course_id = payload.get("course_id")
+    if not isinstance(course_id, int):
+        raise HTTPException(status_code=400, detail="course_id 必须为整数")
+
+    session = SessionLocal()
+    try:
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在或已删除")
+
+        # 计算该课程成绩组成项的完成情况
+        grade_items = (
+            session.query(GradeItem)
+            .filter(GradeItem.course_id == course_id, GradeItem.is_deleted == False)
+            .all()
+        )
+        enrollments = (
+            session.query(Enrollment)
+            .filter(Enrollment.course_id == course_id, Enrollment.is_deleted == False)
+            .all()
+        )
+
+        if not grade_items:
+            raise HTTPException(status_code=400, detail="该课程尚未配置成绩组成项，无法审核")
+        if not enrollments:
+            raise HTTPException(status_code=400, detail="该课程当前无选课学生，无法审核")
+
+        expected_count = len(grade_items) * len(enrollments)
+        grades = (
+            session.query(Grade)
+            .join(Enrollment, Grade.enrollment_id == Enrollment.id)
+            .filter(
+                Enrollment.course_id == course_id,
+                Grade.grade_item_id.in_([gi.id for gi in grade_items]),
+                Grade.is_deleted == False,
+            )
+            .all()
+        )
+        graded_count = sum(1 for g in grades if g.score is not None)
+
+        if expected_count == 0 or graded_count < expected_count:
+            raise HTTPException(status_code=400, detail="仍有学生的成绩组成项未评分完成，无法审核通过")
+
+        course.grade_approved = True
+        session.commit()
+
+        return {"message": "课程成绩已审核通过，可在发布页进行发布。"}
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/grades/batch-approve")
+def batch_approve_course_grades(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    """教学管理员批量审核通过多门课程的成绩。
+
+    仅当每门课程所有学生的所有成绩组成项均已评分完成时
+    才会被标记为已审核。
+    """
+
+    _require_edu_admin(current_user)
+
+    course_ids = payload.get("course_ids") or []
+    if not isinstance(course_ids, list):
+        raise HTTPException(status_code=400, detail="course_ids 必须为数组")
+
+    session = SessionLocal()
+    try:
+        approved = 0
+        skipped = 0
+        for cid in course_ids:
+            if not isinstance(cid, int):
+                skipped += 1
+                continue
+
+            course = (
+                session.query(Course)
+                .filter(Course.id == cid, Course.is_deleted == 0)
+                .first()
+            )
+            if not course:
+                skipped += 1
+                continue
+
+            grade_items = (
+                session.query(GradeItem)
+                .filter(GradeItem.course_id == cid, GradeItem.is_deleted == False)
+                .all()
+            )
+            enrollments = (
+                session.query(Enrollment)
+                .filter(Enrollment.course_id == cid, Enrollment.is_deleted == False)
+                .all()
+            )
+
+            if not grade_items or not enrollments:
+                skipped += 1
+                continue
+
+            expected_count = len(grade_items) * len(enrollments)
+            grades = (
+                session.query(Grade)
+                .join(Enrollment, Grade.enrollment_id == Enrollment.id)
+                .filter(
+                    Enrollment.course_id == cid,
+                    Grade.grade_item_id.in_([gi.id for gi in grade_items]),
+                    Grade.is_deleted == False,
+                )
+                .all()
+            )
+            graded_count = sum(1 for g in grades if g.score is not None)
+
+            if expected_count == 0 or graded_count < expected_count:
+                skipped += 1
+                continue
+
+            course.grade_approved = True
+            approved += 1
+
+        session.commit()
+
+        return {
+            "message": f"本次请求中 {approved} 门课程成绩已审核通过，{skipped} 门课程因成绩未录满而被跳过。",
+            "approved": approved,
+            "skipped": skipped,
+        }
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/grades/reject")
+def reject_course_grades(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    """教学管理员退回单门课程的成绩以供修改。
+
+    当前实现仅做基本参数与权限校验，并返回确认信息；不直接
+    修改成绩记录，避免在未明确业务规则时引入破坏性更改。
+    """
+
+    _require_edu_admin(current_user)
+
+    course_id = payload.get("course_id")
+    reason = (payload.get("reason") or "").strip()
+
+    if not isinstance(course_id, int):
+        raise HTTPException(status_code=400, detail="course_id 必须为整数")
+    if not reason:
+        raise HTTPException(status_code=400, detail="退回理由不能为空")
+
+    session = SessionLocal()
+    try:
+        course = (
+            session.query(Course)
+            .filter(Course.id == course_id, Course.is_deleted == 0)
+            .first()
+        )
+        if not course:
+            raise HTTPException(status_code=404, detail="课程不存在或已删除")
+
+        has_pending = (
+            session.query(Grade)
+            .join(Enrollment, Grade.enrollment_id == Enrollment.id)
+            .filter(
+                Enrollment.course_id == course_id,
+                Grade.is_deleted == False,
+                Grade.status != "published",
+            )
+            .first()
+        )
+
+        if not has_pending:
+            return {"message": "该课程当前没有可退回的成绩"}
+
+        # 退回后视为未通过审核
+        course.grade_approved = False
+        session.commit()
+
+        return {"message": "课程成绩已退回修改，请通知授课教师处理。", "reason": reason}
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/grades/batch-reject")
+def batch_reject_course_grades(payload: Dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
+    """教学管理员批量退回多门课程的成绩。"""
+
+    _require_edu_admin(current_user)
+
+    course_ids = payload.get("course_ids") or []
+    reason = (payload.get("reason") or "").strip()
+
+    if not isinstance(course_ids, list):
+        raise HTTPException(status_code=400, detail="course_ids 必须为数组")
+    if not reason:
+        raise HTTPException(status_code=400, detail="退回理由不能为空")
+
+    session = SessionLocal()
+    try:
+        rejected = 0
+        skipped = 0
+        for cid in course_ids:
+            if not isinstance(cid, int):
+                skipped += 1
+                continue
+
+            course = (
+                session.query(Course)
+                .filter(Course.id == cid, Course.is_deleted == 0)
+                .first()
+            )
+            if not course:
+                skipped += 1
+                continue
+
+            has_pending = (
+                session.query(Grade)
+                .join(Enrollment, Grade.enrollment_id == Enrollment.id)
+                .filter(
+                    Enrollment.course_id == cid,
+                    Grade.is_deleted == False,
+                    Grade.status != "published",
+                )
+                .first()
+            )
+
+            if has_pending:
+                course.grade_approved = False
+                rejected += 1
+            else:
+                skipped += 1
+
+        session.commit()
+
+        return {
+            "message": f"本次请求中 {rejected} 门课程的成绩已退回修改，{skipped} 门课程被跳过。",
+            "rejected": rejected,
+            "skipped": skipped,
+            "reason": reason,
+        }
+    finally:
+        session.close()
+
+
+# =====================
+# 系统管理与日志（接入数据库实现）
+# =====================
+
+
+def _require_sys_admin(current_user: CurrentUser):
+    if current_user.role != "sys_admin":
+        raise HTTPException(status_code=403, detail="仅系统管理员可以执行此操作")
+
+
+@app.get("/api/v1/logs")
+def query_logs(
+    user_id: Optional[int] = None,
+    action: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    page: int = 1,
+    pageSize: int = 10,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    _require_sys_admin(current_user)
+    session = SessionLocal()
+    try:
+        q = session.query(Log).options(joinedload(Log.user))
+        if user_id is not None:
+            q = q.filter(Log.user_id == user_id)
+        if action:
+            q = q.filter(Log.action == action)
+
+        start_dt = parse_iso_datetime(start_date) if start_date else None
+        end_dt = parse_iso_datetime(end_date) if end_date else None
+        if start_dt:
+            q = q.filter(Log.created_at >= start_dt)
+        if end_dt:
+            q = q.filter(Log.created_at <= end_dt)
+
+        total_items = q.count()
+        total_pages = math.ceil(total_items / pageSize) if pageSize else 1
+        logs = (
+            q.order_by(Log.created_at.desc())
+            .offset((page - 1) * pageSize)
+            .limit(pageSize)
+            .all()
+        )
+
+        items = []
+        for lg in logs:
+            items.append(
+                {
+                    "id": lg.id,
+                    "user": {
+                        "id": lg.user.id if lg.user else None,
+                        "username": lg.user.username if lg.user else None,
+                    },
+                    "action": lg.action,
+                    "details": lg.details,
+                    "ip_address": lg.ip_address,
+                    "created_at": lg.created_at.isoformat() + "Z",
+                }
+            )
+
+        return {
+            "pagination": {
+                "totalItems": total_items,
+                "totalPages": total_pages,
+                "currentPage": page,
+                "pageSize": pageSize,
+            },
+            "logs": items,
+        }
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/system/backups", status_code=status.HTTP_202_ACCEPTED)
+def create_backup(current_user: CurrentUser = Depends(get_current_user)):
+    _require_sys_admin(current_user)
+    task_id = f"backup-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    return {"message": "数据备份任务已启动。", "task_id": task_id}
+
+
+@app.post("/api/v1/{resource_type}/{id}/restore")
+def restore_resource(
+    resource_type: str,
+    id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    # 默认由教学管理员或系统管理员执行
+    if current_user.role not in {"edu_admin", "sys_admin"}:
+        raise HTTPException(status_code=403, detail="仅管理员可以恢复资源")
+
+    model = RESTORABLE_MODELS.get(resource_type.lower())
+    if not model:
+        raise HTTPException(status_code=400, detail="不支持的资源类型")
+
+    session = SessionLocal()
+    try:
+        obj = session.query(model).get(id)
+        if not obj:
+            raise HTTPException(status_code=404, detail="资源不存在")
+
+        if not hasattr(obj, "is_deleted"):
+            raise HTTPException(status_code=400, detail="该资源不支持软删除恢复")
+
+        setattr(obj, "is_deleted", False)
+        session.commit()
+        return {"message": "资源已成功恢复。"}
+    finally:
+        session.close()

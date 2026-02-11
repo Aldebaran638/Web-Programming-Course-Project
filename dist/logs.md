@@ -1,0 +1,1 @@
+1. 我发现docker pull拉取镜像和docker build中Dockerfile的FROM步骤里拉取镜像的路径是不同的.前者是在shell中运行的指令,走的是主机配置的网络;但是后者是docker daemon(docker后台)运行的指令,它的代理等似乎需要另外配置

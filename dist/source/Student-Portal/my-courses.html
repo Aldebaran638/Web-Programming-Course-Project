@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的课程 - 成绩管理教学平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-shell">
+        <!-- 侧边栏将由JS自动插入 -->
+        
+        <main class="main-content">
+            <header class="page-header">
+                <div>
+                    <h1><i class="fas fa-list-check"></i> 我的课程</h1>
+                    <p class="page-subtitle">管理已选修的所有课程</p>
+                </div>
+                <div class="header-actions">
+                    <select class="select-field" id="semesterFilter" onchange="loadMyCourses()">
+                        <option value="">全部学期</option>
+                        <option value="2025-2026-1">2025-2026 第一学期</option>
+                        <option value="2025-2026-2">2025-2026 第二学期</option>
+                    </select>
+                </div>
+            </header>
+
+            <section class="content-panel">
+                <div class="course-grid" id="myCourseList">
+                    <!-- 我的课程列表 -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        initSidebar('my-courses');
+    </script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>系统管理中心 - 成绩管理教学平台</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <script>
+      // 系统管理端首页不再单独展示控制面板，直接跳转到日志审计页面
+      window.location.replace("logs.html");
+    </script>
+    <noscript>
+      <p
+        style="
+          padding: 24px;
+          font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
+            'Segoe UI', sans-serif;
+        "
+      >
+        系统管理端当前仅保留<span style="font-weight: 600">日志审计</span
+        >功能，请访问 <a href="logs.html">日志审计页面</a> 完成相关操作。
+      </p>
+    </noscript>
+
+    <div class="sys-admin-container">
+      <!-- 侧边栏导航 -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">
+            <i class="fas fa-cogs"></i>
+            <h2>系统管理中心</h2>
+          </div>
+          <div class="user-info">
+            <div class="avatar">
+              <i class="fas fa-user-shield"></i>
+            </div>
+            <div class="user-details">
+              <span class="username" id="username">系统管理员</span>
+              <span class="role">系统管理员</span>
+            </div>
+          </div>
+        </div>
+
+        <nav class="sidebar-menu">
+          <div class="menu-section">
+            <h3 class="section-title">系统管理</h3>
+            <ul>
+              <li class="active">
+                <a href="#dashboard">
+                  <i class="fas fa-tachometer-alt"></i>
+                  <span>控制面板</span>
+                </a>
+              </li>
+              <li>
+                <a href="logs.html">
+                  <i class="fas fa-clipboard-list"></i>
+                  <span>日志审计</span>
+                  <span class="badge" id="log-count">0</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div class="menu-section">
+            <h3 class="section-title">快速操作</h3>
+            <ul>
+              <li>
+                <a href="logs.html?action=ERROR">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  <span>查看错误日志</span>
+                  <span class="badge error" id="error-count">0</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div class="menu-section">
+            <h3 class="section-title">其他</h3>
+            <ul>
+              <li>
+                <a href="../aldebaran/page.html" target="_blank">
+                  <i class="fas fa-home"></i>
+                  <span>返回首页</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" id="logout-btn">
+                  <i class="fas fa-sign-out-alt"></i>
+                  <span>退出登录</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="system-status">
+            <div class="status-item">
+              <span class="status-label">当前模块</span>
+              <span class="status-value">日志审计</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 主内容区 -->
+      <main class="main-content">
+        <header class="top-header">
+          <div class="header-left">
+            <h1>系统控制面板</h1>
+            <p class="subtitle">监控和管理整个教学平台</p>
+          </div>
+          <div class="header-right">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" placeholder="搜索操作记录..." />
+            </div>
+            <div class="header-actions">
+              <button
+                class="btn btn-primary"
+                onclick="window.location.href='logs.html'"
+              >
+                <i class="fas fa-clipboard-list"></i> 日志审计
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-wrapper">
+          <!-- 欢迎卡片 -->
+          <section class="welcome-card">
+            <div class="welcome-content">
+              <h2><i class="fas fa-shield-alt"></i> 欢迎回来，系统管理员</h2>
+              <p>
+                您正在管理成绩管理教学平台的核心系统。请谨慎操作所有管理功能，尤其是日志审计相关操作。
+              </p>
+              <div class="welcome-actions">
+                <button
+                  class="btn btn-primary"
+                  onclick="window.location.href='logs.html'"
+                >
+                  <i class="fas fa-clipboard-list"></i> 查看系统日志
+                </button>
+              </div>
+            </div>
+            <div class="welcome-illustration">
+              <i class="fas fa-server"></i>
+            </div>
+          </section>
+
+          <!-- 功能卡片 -->
+          <section class="dashboard-section">
+            <h3 class="section-title">核心管理功能</h3>
+            <div class="cards-grid">
+              <div
+                class="card feature-card"
+                onclick="window.location.href='logs.html'"
+              >
+                <div class="card-icon log-audit">
+                  <i class="fas fa-clipboard-list"></i>
+                </div>
+                <div class="card-content">
+                  <h4>日志审计</h4>
+                  <p>查看系统操作记录，监控用户活动，审计安全事件。</p>
+                  <div class="card-stats">
+                    <div class="stat">
+                      <span class="stat-label">日志总数</span>
+                      <span class="stat-value" id="today-logs">0</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-action">
+                  <span>进入管理 <i class="fas fa-arrow-right"></i></span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <footer class="main-footer">
+          <p>
+            © 2025 成绩管理教学平台 - 系统管理端 | 最后更新:
+            <span id="last-update">今天 10:30</span>
+          </p>
+          <p class="footer-links">
+            <a href="logs.html">操作日志</a>
+          </p>
+        </footer>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

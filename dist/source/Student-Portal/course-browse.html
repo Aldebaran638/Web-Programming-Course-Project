@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程浏览 - 成绩管理教学平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-shell">
+        <!-- 侧边栏将由JS自动插入 -->
+        
+        <main class="main-content">
+            <header class="page-header">
+                <div>
+                    <h1><i class="fas fa-compass"></i> 课程浏览</h1>
+                    <p class="page-subtitle">发现并选修感兴趣的课程</p>
+                </div>
+            </header>
+
+            <section class="search-panel">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="搜索课程名称或编号...">
+                    <button class="btn-primary" onclick="searchCourses()">
+                        <i class="fas fa-search"></i> 搜索
+                    </button>
+                </div>
+            </section>
+
+            <section class="content-panel">
+                <div class="panel-header">
+                    <h2>课程列表</h2>
+                    <div class="pagination-controls">
+                        <button class="btn-icon" onclick="prevPage()" title="上一页">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span class="page-info" id="pageInfo">第1页</span>
+                        <button class="btn-icon" onclick="nextPage()" title="下一页">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="course-grid" id="courseList">
+                    <!-- 课程卡片 -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="enrollModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>选课确认</h3>
+                <button class="btn-close" onclick="closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="modalCourseName"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn-primary" onclick="confirmEnroll()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        initSidebar('browse');
+    </script>
+</body>
+</html>
